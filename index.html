@@ -413,6 +413,32 @@ textarea.inp{resize:vertical;min-height:190px;line-height:1.6;white-space:pre;ov
 #bulkMsg{white-space:pre-wrap;line-height:1.7;letter-spacing:.04em;text-transform:none}
 @media (max-width:1600px){ .tab .k{display:none} .tab{padding:6px 10px} }
 @media (max-width:1180px){ main{grid-template-columns:200px minmax(0,1fr) 300px} }
+/* ===== collapsible side panels (desktop) ===== */
+.edge-tab,.side-hide{display:none}
+#miniIns{display:none}
+@media (min-width:921px){
+  main{--rw:236px;--iw:336px;grid-template-columns:var(--rw) minmax(0,1fr) var(--iw);transition:grid-template-columns .32s cubic-bezier(.16,1,.3,1),column-gap .32s}
+  body.rail-closed main{--rw:0px}
+  body.ins-closed main{--iw:0px}
+  body.rail-closed.ins-closed main{column-gap:0}
+  body.rail-closed #rail,body.ins-closed #inspector{visibility:hidden;padding:0;border-width:0;overflow:hidden;min-width:0}
+  body.rail-closed #rail::before,body.rail-closed #rail::after,body.ins-closed #inspector::before,body.ins-closed #inspector::after{display:none}
+  .side-hide{display:inline-grid;place-items:center;width:24px;height:22px;border:1px solid var(--c1-line);color:var(--c1);font-family:var(--mono);font-size:11px;margin-left:6px}
+  .side-hide:hover{background:var(--c1-dim)}
+  .edge-tab{position:fixed;z-index:25;top:50%;transform:translateY(-50%);display:none;flex-direction:column;align-items:center;gap:6px;padding:12px 5px;background:rgba(2,10,18,.88);border:1px solid var(--c1-line);color:var(--c1);font-family:var(--mono);font-size:10px;letter-spacing:.2em;writing-mode:vertical-rl;cursor:pointer;transition:background .2s,box-shadow .2s}
+  .edge-tab:hover{background:var(--c1-dim);box-shadow:0 0 14px rgba(34,230,255,.35)}
+  #railTab{left:0;border-left:0}
+  #insTab{right:0;border-right:0}
+  body.rail-closed #railTab,body.ins-closed #insTab{display:flex}
+  /* compact play bar when the inspector is hidden */
+  body.ins-closed.has-ins #miniIns{display:flex}
+  #miniIns{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);z-index:6;pointer-events:auto;align-items:center;gap:10px;max-width:min(640px,94%);padding:8px 10px;background:rgba(2,10,18,.9);border:1px solid var(--accent);box-shadow:0 0 18px color-mix(in srgb,var(--accent) 35%,transparent);animation:tIn .25s}
+  #miniIns img{width:96px;aspect-ratio:16/9;object-fit:cover;flex:none;border:1px solid var(--c1-line)}
+  #miniIns .tt{min-width:0;flex:1}
+  #miniIns .ch{font-family:var(--mono);font-size:10px;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #miniIns .ti{font-size:12px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  #miniIns .btn{flex:none}
+}
 @media (max-width:920px){
   header{gap:8px}
   .logo .t{font-size:14px;letter-spacing:.12em}
@@ -505,7 +531,7 @@ textarea.inp{resize:vertical;min-height:190px;line-height:1.6;white-space:pre;ov
 
   <main>
     <aside id="rail" class="frame">
-      <div class="head"><span class="lbl"><b>◢</b> HUB INDEX</span><span class="lbl" id="hubCount">09</span></div>
+      <div class="head"><span class="lbl"><b>◢</b> HUB INDEX</span><span style="display:flex;align-items:center"><span class="lbl" id="hubCount">09</span><button class="side-hide" id="railHide" title="左パネルを隠す ( [ )">◀</button></span></div>
       <div id="hubList"></div>
     </aside>
 
@@ -526,12 +552,13 @@ textarea.inp{resize:vertical;min-height:190px;line-height:1.6;white-space:pre;ov
       <div id="chBar" class="pe"></div>
       <div id="stage">
         <div id="matrix"></div>
+        <div id="miniIns"><img id="miniThumb" alt=""><div class="tt"><div class="ch" id="miniCh"></div><div class="ti" id="miniTitle"></div></div><button class="btn pri" id="miniPlay">▶ 再生</button><button class="btn" id="miniOpen" title="詳細パネルを開く">詳細</button></div>
         <div id="emptyMsg"><div><div class="big">NO SIGNAL</div><div class="lbl" style="margin-top:8px">該当ノードなし — 別のタブ/ハブを選択</div></div></div>
       </div>
     </section>
 
     <aside id="inspector" class="frame">
-      <div class="head"><span class="lbl"><b>◢</b> NODE INSPECTOR</span><span class="inav"><button id="insPrevN" title="前のノード">‹</button><button id="insNextN" title="次のノード">›</button><button id="insClose" title="閉じる">✕</button></span></div>
+      <div class="head"><span class="lbl"><b>◢</b> NODE INSPECTOR</span><span class="inav"><button id="insPrevN" title="前のノード">‹</button><button id="insNextN" title="次のノード">›</button><button id="insClose" title="閉じる">✕</button><button class="side-hide" id="insHide" title="右パネルを隠す ( ] )">▶</button></span></div>
       <div id="insEmpty">ノード未選択<br>カーソル/指を近づけるとノードが拡大<br>ドラッグで回転・ホイール/ピンチで拡大<br>クリックで捕捉 → もう一度で再生<br>六角形のハブでセクター集中</div>
       <div id="insBody">
         <div class="ins-wrap">
@@ -592,6 +619,8 @@ textarea.inp{resize:vertical;min-height:190px;line-height:1.6;white-space:pre;ov
   </footer>
 </div>
 
+<button class="edge-tab" id="railTab" title="左パネルを表示 ( [ )">▶ HUB INDEX</button>
+<button class="edge-tab" id="insTab" title="右パネルを表示 ( ] )">◀ INSPECTOR</button>
 <div id="tip"></div>
 <div id="pblue"></div>
 <canvas id="dive" aria-hidden="true"></canvas>
@@ -763,6 +792,7 @@ textarea.inp{resize:vertical;min-height:190px;line-height:1.6;white-space:pre;ov
         <span><kbd>W</kbd></span><span>視聴済み切替</span>
         <span><kbd>G</kbd></span><span>NERVE / MATRIX 切替</span>
         <span><kbd>L</kbd></span><span>ラベル表示切替</span>
+        <span><kbd>[</kbd> <kbd>]</kbd></span><span>左 / 右パネルの表示切替（PC）</span>
         <span><kbd>1</kbd>〜<kbd>7</kbd></span><span>タブ切替</span>
         <span><kbd>Z</kbd></span><span>Shorts表示切替（動画 → ＋Shorts → Shortsのみ）</span>
         <span><kbd>M</kbd></span><span>MAGI 審議（おすすめ動画を3人格の多数決で選ぶ）</span>
@@ -810,7 +840,7 @@ const store = {
   get(k, f) { try { const r = localStorage.getItem(k); return r ? JSON.parse(r) : f; } catch (e) { return f; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { if (!store._warned) { store._warned = true; setTimeout(() => toast('⚠ 端末の保存容量が上限です。一部のデータが保存されていません'), 0); } return false; } }
 };
-const DEFAULT_PREFS = { chBarOpen: null, iosMode: 'tap', searchOpen: null, diveFull: true, rot: 'chirp', rotVol: 0.5, cc: 'off', sfx: true, vol: 0.6, dive: true, shorts: 'exclude', latestDays: 30, newDays: 3, newSinceVisit: true, lens: 1, parallax: true, labels: 'auto', density: 1, autoNext: true, autoRot: true, fx: true, eco: 'auto' };
+const DEFAULT_PREFS = { railOpen: true, insOpen: true, chBarOpen: null, iosMode: 'tap', searchOpen: null, diveFull: true, rot: 'chirp', rotVol: 0.5, cc: 'off', sfx: true, vol: 0.6, dive: true, shorts: 'exclude', latestDays: 30, newDays: 3, newSinceVisit: true, lens: 1, parallax: true, labels: 'auto', density: 1, autoNext: true, autoRot: true, fx: true, eco: 'auto' };
 const state = {
   channels: store.get('aether_channels_v1', []),
   videos: store.get('aether_videos_v1', []),
@@ -1577,7 +1607,7 @@ function drawCallout(n) {
   ctx.save(); ctx.strokeStyle = n.accent; ctx.lineWidth = 2;
   const x0 = g.x - 7, y0 = g.y - 7, x1 = g.x + g.w + 7, y1 = g.y + g.h + 7;
   [[x0, y0, 1, 1], [x1, y0, -1, 1], [x0, y1, 1, -1], [x1, y1, -1, -1]].forEach(([x, y, sx, sy]) => { ctx.beginPath(); ctx.moveTo(x + sx * c, y); ctx.lineTo(x, y); ctx.lineTo(x, y + sy * c); ctx.stroke(); });
-  if (!isMobile()) {
+  if (!isMobile() && state.prefs.insOpen !== false) {
     const ex = net.rightEdge - 8, ey = clamp(g.y - 30, 90, net.h - 90);
     ctx.strokeStyle = hexA(n.accent, 0.65); ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(x1, y0); ctx.lineTo(x1 + 22, ey); ctx.lineTo(ex, ey); ctx.stroke();
@@ -1981,8 +2011,9 @@ function inspect(v, focus) {
   document.querySelectorAll('#mgrid .card.sel').forEach(el => el.classList.remove('sel'));
   const ce = document.querySelector(`#mgrid .card[data-v="${v.id}"]`); if (ce) ce.classList.add('sel');
   if (focus) { focusNode(net.vids.find(x => x.id === v.id)); syslog(`LOCK >> ${v.id}`); }
+  updateMini();
 }
-function clearInspect() { $('insPrevN').style.display = $('insNextN').style.display = 'none'; state.inspected = null; setAccent(); $('insEmpty').classList.remove('hide'); $('insBody').classList.remove('show'); $('inspector').classList.remove('show-m'); net.tZoom = 1; }
+function clearInspect() { $('insPrevN').style.display = $('insNextN').style.display = 'none'; state.inspected = null; document.body.classList.remove('has-ins'); setAccent(); $('insEmpty').classList.remove('hide'); $('insBody').classList.remove('show'); $('inspector').classList.remove('show-m'); net.tZoom = 1; }
 function updateBtns() {
   if (state.inspected) {
     const s = state.savedIds.includes(state.inspected), w = state.watchedIds.includes(state.inspected);
@@ -2271,6 +2302,25 @@ async function sync(quiet) {
 }
 // ---------- per-channel full archive ----------
 let archBusy = null;
+// ===== collapsible side panels (desktop) =====
+function applyPanels() {
+  document.body.classList.toggle('rail-closed', state.prefs.railOpen === false);
+  document.body.classList.toggle('ins-closed', state.prefs.insOpen === false);
+}
+function setPanel(which, open) {
+  state.prefs[which] = open; savePrefs(); applyPanels(); SFX.ui(); updateMini();
+  const re = () => { resize(); if (state.mode === 'nerve') { loop.drawnWhilePaused = false; wake(); } else renderStage(); };
+  re(); setTimeout(re, 340);
+}
+function updateMini() {
+  document.body.classList.toggle('has-ins', !!state.inspected);
+  const v = state.inspected && vidById(state.inspected); if (!v) return;
+  const c = chOf(v.channelId);
+  $('miniThumb').src = `https://i.ytimg.com/vi/${v.id}/mqdefault.jpg`;
+  $('miniCh').textContent = `${c.name} · ${relTime(v)} · ${v.duration || ''}`;
+  $('miniTitle').textContent = v.title;
+  $('miniPlay').textContent = canResume(v.id) ? `▶ 続きから` : '▶ 再生';
+}
 function chBarOpen() { return state.prefs.chBarOpen === null ? !isMobile() : state.prefs.chBarOpen; }
 function setChBar(open) {
   state.prefs.chBarOpen = open; savePrefs(); SFX.ui();
@@ -2593,6 +2643,13 @@ function initEvents() {
   $('insWatch').onclick = () => state.inspected && toggleWatched(state.inspected);
   $('insShare').onclick = () => state.inspected && share(state.inspected);
   $('insClose').onclick = clearInspect;
+  $('railHide').onclick = () => setPanel('railOpen', false);
+  $('insHide').onclick = () => setPanel('insOpen', false);
+  $('railTab').onclick = () => setPanel('railOpen', true);
+  $('insTab').onclick = () => setPanel('insOpen', true);
+  $('miniPlay').onclick = () => state.inspected && openPlayer(state.inspected, { dive: true });
+  $('miniOpen').onclick = () => setPanel('insOpen', true);
+  $('miniThumb').onclick = () => state.inspected && openPlayer(state.inspected, { dive: true });
   $('matrix').addEventListener('click', e => {
     const mg = e.target.closest('[data-magi]');
     if (mg) { if (mg.dataset.magi === 'run') runMagi(); else { state.magiOnly = !state.magiOnly; renderStage(); } return; }
@@ -2693,6 +2750,8 @@ function initEvents() {
     else if (k === 'w' && state.inspected) toggleWatched(state.inspected);
     else if (k === 'g') setMode(state.mode === 'nerve' ? 'grid' : 'nerve');
     else if (k === 'l') cycleLabel();
+    else if (e.key === '[' && !isMobile()) setPanel('railOpen', state.prefs.railOpen === false);
+    else if (e.key === ']' && !isMobile()) setPanel('insOpen', state.prefs.insOpen === false);
     else if (/^[1-9]$/.test(e.key) && TABS[+e.key - 1]) setTab(TABS[+e.key - 1].key);
     else if (k === 'z') { const o = ['exclude', 'include', 'only']; setShorts(o[(o.indexOf(state.prefs.shorts || 'exclude') + 1) % 3]); }
     else if (k === 'm') runMagi();
@@ -2710,7 +2769,7 @@ function initEvents() {
 // =============================================================================
 function boot() {
   const lines = [
-    '<span class="c">MY NERVE TUBE NET</span> // GHOST ARCHIVE TUNER  v6.1',
+    '<span class="c">MY NERVE TUBE NET</span> // GHOST ARCHIVE TUNER  v6.2',
     '> MAGI SYSTEM: MELCHIOR·1 / BALTHASAR·2 / CASPER·3 ... ONLINE',
     '> initializing cyberbrain interface ........ OK',
     `> mounting ${state.channels.length} hubs / ${state.videos.length} memory nodes ... OK`,
@@ -2724,7 +2783,7 @@ function boot() {
 }
 ['gesturestart', 'gesturechange'].forEach(t => document.addEventListener(t, e => e.preventDefault(), { passive: false }));
 window.addEventListener('DOMContentLoaded', () => {
-  document.body.classList.toggle('q-closed', !searchOpen());
+  document.body.classList.toggle('q-closed', !searchOpen()); applyPanels();
   syncGenres(); buildDust(); initEvents(); applyPrefs(); renderCfg(); renderAll(); updateQBtn();
   syslog('NERVE NET online', 'ok');
   if (IS_FILE) { syslog('file:// — 埋め込み再生にはWeb配信が必要', 'wr'); $('linkChip').classList.add('warn'); }
