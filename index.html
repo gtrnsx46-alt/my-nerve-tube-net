@@ -644,6 +644,7 @@ textarea.inp{resize:vertical;min-height:190px;line-height:1.6;white-space:pre;ov
         <div class="set"><div><div>レンズ強度</div><div class="d">カーソル/指の周りのノードを拡大し、周囲を押し退ける強さ</div></div><input type="range" id="sLens" min="0" max="1.5" step="0.1" /></div>
         <div class="set"><div><div>省電力モード</div><div class="d">ON：描画を30fps・低解像度にし、ぼかし等の重い効果を止めます。しばらく操作がないとさらに減速。再生中・MATRIX表示中は球体の計算を完全停止します（これは常に有効）。AUTO＝スマホ/タブレットでON</div></div><select id="sEco" class="fsel"><option value="auto">AUTO</option><option value="on">ON</option><option value="off">OFF</option></select></div>
         <div class="set"><div><div>効果音</div><div class="d">ノードの移動・選択・ダイブ・MAGI審議などに電子音を付けます（再生中は自動で無音）</div></div><span style="display:flex;gap:10px;align-items:center"><input type="range" id="sVol" min="0" max="1" step="0.05" /><input type="checkbox" id="sSfx" /></span></div>
+        <div class="set"><div><div>球体を回すときの音</div><div class="d">電子音：小さな「ピッ」というデータ音がまばらに鳴る ／ 風：低くやわらかい風の音 ／ なし</div></div><span style="display:flex;gap:10px;align-items:center"><input type="range" id="sRotVol" min="0" max="1" step="0.05" title="音量" /><select id="sRot" class="fsel"><option value="chirp">電子音</option><option value="air">風</option><option value="off">なし</option></select></span></div>
         <div class="set"><div><div>ダイブ演出</div><div class="d">再生時に動画の記憶へ潜り込むトランジションを表示します</div></div><input type="checkbox" id="sDive" /></div>
         <div class="set"><div><div>字幕</div><div class="d">OFF：再生開始時に字幕を自動で消します ／ ON：日本語字幕を表示 ／ YouTube任せ：アカウントや端末の設定に従います</div></div><select id="sCC" class="fsel"><option value="off">OFF</option><option value="on">ON</option><option value="yt">YouTube任せ</option></select></div>
         <div class="set"><div><div>パララックス</div><div class="d">マウス位置に合わせて球体がわずかに傾く</div></div><input type="checkbox" id="sPar" /></div>
@@ -763,7 +764,7 @@ const store = {
   get(k, f) { try { const r = localStorage.getItem(k); return r ? JSON.parse(r) : f; } catch (e) { return f; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { if (!store._warned) { store._warned = true; setTimeout(() => toast('⚠ 端末の保存容量が上限です。一部のデータが保存されていません'), 0); } return false; } }
 };
-const DEFAULT_PREFS = { cc: 'off', sfx: true, vol: 0.6, dive: true, shorts: 'exclude', latestDays: 30, newDays: 3, newSinceVisit: true, lens: 1, parallax: true, labels: 'auto', density: 1, autoNext: true, autoRot: true, fx: true, eco: 'auto' };
+const DEFAULT_PREFS = { rot: 'chirp', rotVol: 0.5, cc: 'off', sfx: true, vol: 0.6, dive: true, shorts: 'exclude', latestDays: 30, newDays: 3, newSinceVisit: true, lens: 1, parallax: true, labels: 'auto', density: 1, autoNext: true, autoRot: true, fx: true, eco: 'auto' };
 const state = {
   channels: store.get('aether_channels_v1', []),
   videos: store.get('aether_videos_v1', []),
@@ -1123,11 +1124,18 @@ const SFX = {
     for (let k = 0; k < 9; k++) tone('sine', 1800 + Math.random() * 2400, 1800 + Math.random() * 2400, 0.03, 0.02, { at: 0.15 + k * 0.1, send: 0.6 });
     noiseHit(0.5, 0.09, 6000, 300, { at: 1.15, type: 'lowpass', q: 0.5 });
   },
-  motion(m) {               // continuous "nodes moving" texture
-    if (!sfx.wh) return; const c = sfx.ctx, on = state.prefs.sfx && !state.playing && !document.hidden;
-    const v = on ? Math.min(0.11, m * 1.6) : 0;
-    sfx.wh.g.gain.setTargetAtTime(v, c.currentTime, 0.08);
-    sfx.wh.bp.frequency.setTargetAtTime(350 + Math.min(1, m * 8) * 2600, c.currentTime, 0.1);
+  motion(m) {               // sound while the sphere moves — mode: 'chirp' (default) | 'air' | 'off'
+    if (!sfx.wh) return; const c = sfx.ctx, on = state.prefs.sfx && !state.playing && !document.hidden, mode = state.prefs.rot || 'chirp';
+    const air = on && mode === 'air' ? Math.min(0.022, m * 0.3) * (0.4 + state.prefs.rotVol) : 0;   // soft, low "air"
+    sfx.wh.g.gain.setTargetAtTime(air, c.currentTime, 0.12);
+    sfx.wh.bp.frequency.setTargetAtTime(220 + Math.min(1, m * 6) * 700, c.currentTime, 0.15);
+    if (!on || mode !== 'chirp') { sfx.acc = 0; return; }
+    sfx.acc = (sfx.acc || 0) + m * 0.5;                                    // quiet data blips, rate follows speed
+    if (sfx.acc > 0.35 && sfxOk('chirp', 55)) {
+      sfx.acc = 0; const P = [1047, 1175, 1319, 1568, 1760, 2093, 2349];
+      const f = P[(Math.random() * P.length) | 0];
+      tone('sine', f, f * 1.02, 0.03, 0.006 + 0.012 * state.prefs.rotVol, { send: 0.45 });
+    }
   }
 };
 ['pointerdown', 'keydown', 'touchstart'].forEach(ev => window.addEventListener(ev, sfxInit, { passive: true }));
@@ -2209,6 +2217,7 @@ function renderCfg() {
   const on = !!state.apiKey;
   $('apiState').textContent = on ? 'API v3 LIVE' : 'PRESET+RSS'; $('apiKey').value = state.apiKey; $('linkTxt').textContent = on ? 'API v3 LINK' : 'PRESET LINK';
   $('sLatest').value = String(state.prefs.latestDays); $('sNew').value = String(state.prefs.newDays); $('sNewVisit').checked = !!state.prefs.newSinceVisit;
+  $('sRot').value = state.prefs.rot || 'chirp'; $('sRotVol').value = state.prefs.rotVol ?? 0.5;
   $('sVol').value = state.prefs.vol; $('sSfx').checked = !!state.prefs.sfx; $('sDive').checked = !!state.prefs.dive; $('sCC').value = state.prefs.cc;
   $('sLens').value = state.prefs.lens; $('sPar').checked = state.prefs.parallax; $('sLabel').value = state.prefs.labels; $('sDensity').value = String(state.prefs.density);
   renderGenres();
@@ -2345,6 +2354,8 @@ function initEvents() {
   $('sVol').oninput = e => { state.prefs.vol = +e.target.value; savePrefs(); if (sfx.master) sfx.master.gain.value = state.prefs.vol; };
   $('sVol').onchange = () => { sfxInit(); SFX.lock(); };
   $('sSfx').onchange = e => { state.prefs.sfx = e.target.checked; savePrefs(); applyPrefs(); if (state.prefs.sfx) { sfxInit(); SFX.ui(); } else SFX.motion(0); };
+  $('sRot').onchange = e => { state.prefs.rot = e.target.value; savePrefs(); SFX.motion(0); };
+  $('sRotVol').oninput = e => { state.prefs.rotVol = +e.target.value; savePrefs(); };
   $('sDive').onchange = e => { state.prefs.dive = e.target.checked; savePrefs(); };
   $('sCC').onchange = e => { state.prefs.cc = e.target.value; savePrefs(); updateCCBtn(); if (yt) applyCaptions(yt, true); };
   $('sDensity').onchange = e => { state.prefs.density = +e.target.value; savePrefs(); state.page = 1; renderStage(); };
@@ -2409,7 +2420,7 @@ function initEvents() {
 // =============================================================================
 function boot() {
   const lines = [
-    '<span class="c">MY NERVE TUBE NET</span> // GHOST ARCHIVE TUNER  v5.4',
+    '<span class="c">MY NERVE TUBE NET</span> // GHOST ARCHIVE TUNER  v5.5',
     '> MAGI SYSTEM: MELCHIOR·1 / BALTHASAR·2 / CASPER·3 ... ONLINE',
     '> initializing cyberbrain interface ........ OK',
     `> mounting ${state.channels.length} hubs / ${state.videos.length} memory nodes ... OK`,
