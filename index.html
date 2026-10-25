@@ -14,7 +14,7 @@
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="theme-color" content="#010409" />
-<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png?v=2" />
 <link rel="icon" type="image/svg+xml" href="icons/favicon.svg" />
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
 <link rel="manifest" href="manifest.webmanifest" />
@@ -296,6 +296,17 @@ select.fsel{font-family:var(--mono);font-size:10px;background:#020a12;border:1px
 
 .modal{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;padding:calc(12px + var(--sat)) 12px calc(12px + var(--sab));background:rgba(0,4,8,.88);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
 .modal.show{display:flex}
+/* ===== power saving ===== */
+body.playing #app,body.playing #net,body.playing .fx-layer{visibility:hidden}
+body.playing #playerModal{background:#000;backdrop-filter:none;-webkit-backdrop-filter:none}
+body.modal-open .fx-layer{display:none}
+body.modal-open #app *,body.modal-open #app *::before,body.modal-open #app *::after{animation-play-state:paused!important}
+body.eco .frame,body.eco .magibar,body.eco #chBar{backdrop-filter:none;-webkit-backdrop-filter:none}
+body.eco .frame{background:rgba(2,10,18,.93)}
+body.eco .modal{backdrop-filter:none;-webkit-backdrop-filter:none;background:rgba(0,4,8,.96)}
+body.eco #fxSweep,body.eco #fxScan{display:none}
+body.eco.mode-grid #net{filter:none;opacity:.25}
+body.sleeping #fxSweep{display:none}
 .pf{width:min(1100px,100%);max-height:100%;display:flex;flex-direction:column;animation:pfIn .35s cubic-bezier(.16,1,.3,1)}
 @keyframes pfIn{from{opacity:0;transform:scaleY(.04)}60%{opacity:1}to{transform:none}}
 .pf-head{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--c1-line)}
@@ -427,7 +438,7 @@ textarea.inp{resize:vertical;min-height:190px;line-height:1.6;white-space:pre;ov
 <div id="app">
   <header>
     <div class="logo">
-      <img src="icons/icon-192.png" alt="" onerror="this.style.display='none'" />
+      <img src="icons/icon-192.png?v=2" alt="" onerror="this.style.display='none'" />
       <div style="min-width:0">
         <div class="t" data-text="MY NERVE TUBE NET"><small>MY</small>NERVE TUBE NET</div>
         <div class="s">GHOST ARCHIVE TUNER // <em>電脳動画検索インスタレーション</em></div>
@@ -526,6 +537,7 @@ textarea.inp{resize:vertical;min-height:190px;line-height:1.6;white-space:pre;ov
     <button class="fbtn" id="pulseBtn">⚡ PULSE</button>
     <button class="fbtn on" id="rotBtn">AUTO-ROT</button>
     <button class="fbtn on" id="fxBtn">FX: ON</button>
+    <button class="fbtn" id="ecoBtn" title="省電力モード">ECO: AUTO</button>
   </footer>
 </div>
 
@@ -610,6 +622,7 @@ textarea.inp{resize:vertical;min-height:190px;line-height:1.6;white-space:pre;ov
       <div class="blk">
         <span class="lbl"><b>◢</b> DISPLAY — 表示</span>
         <div class="set"><div><div>レンズ強度</div><div class="d">カーソル/指の周りのノードを拡大し、周囲を押し退ける強さ</div></div><input type="range" id="sLens" min="0" max="1.5" step="0.1" /></div>
+        <div class="set"><div><div>省電力モード</div><div class="d">ON：描画を30fps・低解像度にし、ぼかし等の重い効果を止めます。しばらく操作がないとさらに減速。再生中・MATRIX表示中は球体の計算を完全停止します（これは常に有効）。AUTO＝スマホ/タブレットでON</div></div><select id="sEco" class="fsel"><option value="auto">AUTO</option><option value="on">ON</option><option value="off">OFF</option></select></div>
         <div class="set"><div><div>パララックス</div><div class="d">マウス位置に合わせて球体がわずかに傾く</div></div><input type="checkbox" id="sPar" /></div>
         <div class="set"><div><div>ラベル表示</div><div class="d">AUTO: 手前と注目ノードだけ / ALL: すべて / OFF: ホバー時のみ</div></div><select id="sLabel" class="fsel"><option value="auto">AUTO</option><option value="all">ALL</option><option value="off">OFF</option></select></div>
         <div class="set"><div><div>1画面のノード数</div><div class="d">多いほど一覧性UP・少ないほど見やすい</div></div><select id="sDensity" class="fsel"><option value="0.6">少なめ</option><option value="1">標準</option><option value="1.4">多め</option></select></div>
@@ -726,7 +739,7 @@ const store = {
   get(k, f) { try { const r = localStorage.getItem(k); return r ? JSON.parse(r) : f; } catch (e) { return f; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { if (!store._warned) { store._warned = true; setTimeout(() => toast('⚠ 端末の保存容量が上限です。一部のデータが保存されていません'), 0); } return false; } }
 };
-const DEFAULT_PREFS = { lens: 1, parallax: true, labels: 'auto', density: 1, autoNext: true, autoRot: true, fx: true };
+const DEFAULT_PREFS = { lens: 1, parallax: true, labels: 'auto', density: 1, autoNext: true, autoRot: true, fx: true, eco: 'auto' };
 const state = {
   channels: store.get('aether_channels_v1', []),
   videos: store.get('aether_videos_v1', []),
@@ -873,7 +886,7 @@ const thumbs = {};
 function thumb(id) { if (!thumbs[id]) { const im = new Image(); im.decoding = 'async'; im.src = `https://i.ytimg.com/vi/${id}/mqdefault.jpg`; thumbs[id] = im; } return thumbs[id]; }
 
 function resize() {
-  net.dpr = Math.min(window.devicePixelRatio || 1, 2);
+  net.dpr = Math.min(window.devicePixelRatio || 1, ECO() ? 1.5 : 2);
   net.w = window.innerWidth; net.h = window.innerHeight;
   canvas.width = net.w * net.dpr; canvas.height = net.h * net.dpr;
   ctx.setTransform(net.dpr, 0, 0, net.dpr, 0, 0);
@@ -1033,9 +1046,39 @@ function wrapTitle(n, maxW, fs) {
   return n.wrap;
 }
 
+// ===== power-aware render loop =====
+const ECO = () => state.prefs.eco === 'on' || (state.prefs.eco === 'auto' && IS_TOUCH);
+const MODALS = ['playerModal', 'cfgModal', 'helpModal', 'setupModal', 'magiModal'];
+const loop = { raf: 0, last: 0, act: performance.now(), paused: false, drawnWhilePaused: false };
+function shouldPause() { return document.hidden || state.mode !== 'nerve' || MODALS.some(m => $(m).classList.contains('show')); }
+function targetFps() {
+  const idle = performance.now() - loop.act;
+  if (!ECO()) return idle > 120000 ? 30 : 60;
+  if (net.ptr.str > 0.05 || net.drag || net.tYaw !== null) return 30;
+  return idle > 90000 ? 8 : idle > 20000 ? 15 : 30;
+}
+function tick(t) {
+  loop.raf = 0;
+  if (shouldPause()) {                    // draw one last still frame, then stop completely
+    if (!loop.drawnWhilePaused && !document.hidden && state.mode === 'nerve') { frame(); }
+    loop.drawnWhilePaused = true; loop.paused = true; document.body.classList.add('sleeping'); return;
+  }
+  loop.paused = false; loop.drawnWhilePaused = false; document.body.classList.remove('sleeping');
+  loop.raf = requestAnimationFrame(tick);
+  const fps = targetFps();
+  if (fps < 60 && t - loop.last < 1000 / fps - 3) return;
+  loop.last = t; frame();
+}
+function wake() { loop.act = performance.now(); if (!loop.raf && !shouldPause()) loop.raf = requestAnimationFrame(tick); }
+function markActive() { loop.act = performance.now(); if (!loop.raf) wake(); }
+function syncPowerState() {
+  const open = MODALS.some(m => $(m).classList.contains('show'));
+  document.body.classList.toggle('modal-open', open);
+  document.body.classList.toggle('playing', $('playerModal').classList.contains('show'));
+  document.body.classList.toggle('eco', ECO());
+  if (!open) wake();
+}
 function frame() {
-  requestAnimationFrame(frame);
-  if (document.hidden) return;
   net.tick++; const T = state.prefs.fx ? net.tick : 0;
   // camera
   if (!net.drag && !net.pinch) {
@@ -1094,7 +1137,7 @@ function frame() {
     d.p = p;
   });
   ctx.lineWidth = 0.6;
-  net.dustLinks.forEach(([a, b]) => { ctx.strokeStyle = `rgba(34,230,255,${0.03 + Math.max(0, (a.p.z + b.p.z + 2) / 4) * 0.07})`; ctx.beginPath(); ctx.moveTo(a.p.x, a.p.y); ctx.lineTo(b.p.x, b.p.y); ctx.stroke(); });
+  (ECO() ? net.dustLinks.slice(0, 140) : net.dustLinks).forEach(([a, b]) => { ctx.strokeStyle = `rgba(34,230,255,${0.03 + Math.max(0, (a.p.z + b.p.z + 2) / 4) * 0.07})`; ctx.beginPath(); ctx.moveTo(a.p.x, a.p.y); ctx.lineTo(b.p.x, b.p.y); ctx.stroke(); });
   net.dust.forEach(d => { const tw = state.prefs.fx ? (Math.sin(T * 0.04 + d.tw) + 1) / 2 : 0.5; const al = (0.15 + Math.max(0, (d.p.z + 1.5) / 3) * 0.6) * (0.5 + tw * 0.5); ctx.fillStyle = d.tw > 5.4 ? `rgba(0,255,163,${al})` : `rgba(160,240,255,${al})`; const s = 1.2 * d.p.k; ctx.fillRect(d.p.x - s / 2, d.p.y - s / 2, s, s); });
 
   // nodes: project + lens/spring
@@ -1135,7 +1178,7 @@ function frame() {
     const t = pu.rev ? 1 - pu.t : pu.t;
     const x = (1 - t) * (1 - t) * A.x + 2 * (1 - t) * t * mx + t * t * B.x, y = (1 - t) * (1 - t) * A.y + 2 * (1 - t) * t * my + t * t * B.y;
     const col = (pu.rev ? pu.l.a : pu.l.b).accent, al = dA((A.z + B.z) / 2) * Math.min(dim(pu.l.a), dim(pu.l.b));
-    ctx.fillStyle = hexA(col, al); ctx.shadowColor = col; ctx.shadowBlur = 8;
+    ctx.fillStyle = hexA(col, al); if (!ECO()) { ctx.shadowColor = col; ctx.shadowBlur = 8; }
     ctx.beginPath(); ctx.arc(x, y, 1.8 * A.k, 0, Math.PI * 2); ctx.fill();
   });
   ctx.shadowBlur = 0;
@@ -1542,6 +1585,7 @@ function renderStage() {
     : '<div><div class="big" style="color:var(--c1)">NO LINK</div><div class="lbl" style="margin-top:8px">まだチャンネルが登録されていません</div><button class="btn pri" onclick="openSetup()">＋ チャンネルを一括登録</button></div>';
   $('pageTxt').textContent = state.mode === 'grid' ? `${list.length} NODES` : `CLUSTER ${state.page}/${state.totalPages}`;
   renderChBar();
+  if (state.mode === 'nerve') { loop.drawnWhilePaused = false; wake(); }
   $('prevBtn').disabled = state.page <= 1; $('nextBtn').disabled = state.page >= state.totalPages;
 }
 function renderAll() { setAccent(); renderRail(); renderTabs(); resize(); renderStage(); }
@@ -2004,6 +2048,10 @@ function applyPrefs() {
   $('fxBtn').textContent = state.prefs.fx ? 'FX: ON' : 'FX: OFF'; $('fxBtn').classList.toggle('on', state.prefs.fx);
   $('rotBtn').classList.toggle('on', state.prefs.autoRot);
   $('labelBtn').textContent = 'LABEL: ' + state.prefs.labels.toUpperCase();
+  $('ecoBtn').textContent = 'ECO: ' + state.prefs.eco.toUpperCase() + (state.prefs.eco === 'auto' ? (ECO() ? '·ON' : '·OFF') : '');
+  $('ecoBtn').classList.toggle('on', ECO());
+  if ($('sEco')) $('sEco').value = state.prefs.eco;
+  document.body.classList.toggle('eco', ECO());
   $('pAuto').textContent = 'AUTO-NEXT: ' + (state.prefs.autoNext ? 'ON' : 'OFF'); $('pAuto').classList.toggle('ok', state.prefs.autoNext);
 }
 
@@ -2035,6 +2083,9 @@ function initEvents() {
   $('pulseBtn').onclick = pulseWave;
   $('rotBtn').onclick = () => { state.prefs.autoRot = !state.prefs.autoRot; savePrefs(); applyPrefs(); };
   $('fxBtn').onclick = () => { state.prefs.fx = !state.prefs.fx; savePrefs(); applyPrefs(); };
+  const setEco = v => { state.prefs.eco = v; savePrefs(); applyPrefs(); resize(); syncPowerState(); toast(`省電力モード：${v.toUpperCase()}${v === 'auto' ? (ECO() ? '（ON）' : '（OFF）') : ''}`); };
+  $('ecoBtn').onclick = () => { const o = ['auto', 'on', 'off']; setEco(o[(o.indexOf(state.prefs.eco) + 1) % 3]); };
+  $('sEco').onchange = e => setEco(e.target.value);
   const cycleLabel = () => { const o = ['auto', 'all', 'off']; state.prefs.labels = o[(o.indexOf(state.prefs.labels) + 1) % 3]; savePrefs(); applyPrefs(); };
   $('labelBtn').onclick = cycleLabel;
   if (IS_TOUCH && 'DeviceOrientationEvent' in window) { $('tiltBtn').style.display = ''; $('tiltBtn').onclick = toggleTilt; }
@@ -2144,7 +2195,7 @@ function initEvents() {
 // =============================================================================
 function boot() {
   const lines = [
-    '<span class="c">MY NERVE TUBE NET</span> // GHOST ARCHIVE TUNER  v5.1',
+    '<span class="c">MY NERVE TUBE NET</span> // GHOST ARCHIVE TUNER  v5.2',
     '> MAGI SYSTEM: MELCHIOR·1 / BALTHASAR·2 / CASPER·3 ... ONLINE',
     '> initializing cyberbrain interface ........ OK',
     `> mounting ${state.channels.length} hubs / ${state.videos.length} memory nodes ... OK`,
@@ -2162,7 +2213,12 @@ window.addEventListener('DOMContentLoaded', () => {
   syslog('NERVE NET online', 'ok');
   if (IS_FILE) { syslog('file:// — 埋め込み再生にはWeb配信が必要', 'wr'); $('linkChip').classList.add('warn'); }
   boot();
-  requestAnimationFrame(frame);
+  wake();
+  setInterval(() => { if (!loop.raf && !shouldPause()) wake(); }, 700);
+  MODALS.forEach(m => new MutationObserver(syncPowerState).observe($(m), { attributes: true, attributeFilter: ['class'] }));
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) wake(); });
+  ['pointerdown', 'pointermove', 'wheel', 'keydown', 'touchstart'].forEach(ev => window.addEventListener(ev, markActive, { passive: true }));
+  syncPowerState();
   // deep link: #v=VIDEO_ID
   const m = location.hash.match(/^#v=([\w-]{11})/);
   if (m && vidById(m[1])) setTimeout(() => { inspect(vidById(m[1]), true); openPlayer(m[1]); }, 900);
