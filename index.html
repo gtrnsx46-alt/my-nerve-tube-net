@@ -301,6 +301,12 @@ select.fsel{font-family:var(--mono);font-size:10px;background:#020a12;border:1px
 
 .modal{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;padding:calc(12px + var(--sat)) 12px calc(12px + var(--sab));background:rgba(0,4,8,.88);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
 .modal.show{display:flex}
+/* ===== memory dive overlay ===== */
+#dive{position:fixed;inset:0;width:100%;height:100%;z-index:80;display:none;pointer-events:auto;opacity:1;transition:opacity .38s ease}
+#dive.on{display:block}
+#dive.out{opacity:0;pointer-events:none}
+body.diving #app,body.diving #net{visibility:visible!important}
+body.diving #playerModal{opacity:0}
 /* ===== power saving ===== */
 body.playing #app,body.playing #net,body.playing .fx-layer{visibility:hidden}
 body.playing #playerModal{background:#000;backdrop-filter:none;-webkit-backdrop-filter:none}
@@ -543,11 +549,13 @@ textarea.inp{resize:vertical;min-height:190px;line-height:1.6;white-space:pre;ov
     <button class="fbtn on" id="rotBtn">AUTO-ROT</button>
     <button class="fbtn on" id="fxBtn">FX: ON</button>
     <button class="fbtn" id="ecoBtn" title="省電力モード">ECO: AUTO</button>
+    <button class="fbtn on" id="sfxBtn" title="効果音">SFX: ON</button>
   </footer>
 </div>
 
 <div id="tip"></div>
 <div id="pblue"></div>
+<canvas id="dive" aria-hidden="true"></canvas>
 <div id="toast"></div>
 
 <!-- ===== PLAYER ===== -->
@@ -584,6 +592,7 @@ textarea.inp{resize:vertical;min-height:190px;line-height:1.6;white-space:pre;ov
         <button class="btn" id="pPrev" title="前の動画 (P)">◀ PREV</button>
         <button class="btn" id="pNext" title="次の動画 (N)">NEXT ▶</button>
         <button class="btn ok" id="pAuto" title="終了後に次の動画を自動再生">AUTO-NEXT: ON</button>
+        <button class="btn" id="pCC" title="字幕の表示切替">字幕: OFF</button>
         <button class="btn" id="pShare">⇪ 共有</button>
       </div>
       <div class="grp"><span id="pResume"></span><span id="pMeta">-</span></div>
@@ -634,6 +643,9 @@ textarea.inp{resize:vertical;min-height:190px;line-height:1.6;white-space:pre;ov
         <span class="lbl"><b>◢</b> DISPLAY — 表示</span>
         <div class="set"><div><div>レンズ強度</div><div class="d">カーソル/指の周りのノードを拡大し、周囲を押し退ける強さ</div></div><input type="range" id="sLens" min="0" max="1.5" step="0.1" /></div>
         <div class="set"><div><div>省電力モード</div><div class="d">ON：描画を30fps・低解像度にし、ぼかし等の重い効果を止めます。しばらく操作がないとさらに減速。再生中・MATRIX表示中は球体の計算を完全停止します（これは常に有効）。AUTO＝スマホ/タブレットでON</div></div><select id="sEco" class="fsel"><option value="auto">AUTO</option><option value="on">ON</option><option value="off">OFF</option></select></div>
+        <div class="set"><div><div>効果音</div><div class="d">ノードの移動・選択・ダイブ・MAGI審議などに電子音を付けます（再生中は自動で無音）</div></div><span style="display:flex;gap:10px;align-items:center"><input type="range" id="sVol" min="0" max="1" step="0.05" /><input type="checkbox" id="sSfx" /></span></div>
+        <div class="set"><div><div>ダイブ演出</div><div class="d">再生時に動画の記憶へ潜り込むトランジションを表示します</div></div><input type="checkbox" id="sDive" /></div>
+        <div class="set"><div><div>字幕</div><div class="d">OFF：再生開始時に字幕を自動で消します ／ ON：日本語字幕を表示 ／ YouTube任せ：アカウントや端末の設定に従います</div></div><select id="sCC" class="fsel"><option value="off">OFF</option><option value="on">ON</option><option value="yt">YouTube任せ</option></select></div>
         <div class="set"><div><div>パララックス</div><div class="d">マウス位置に合わせて球体がわずかに傾く</div></div><input type="checkbox" id="sPar" /></div>
         <div class="set"><div><div>ラベル表示</div><div class="d">AUTO: 手前と注目ノードだけ / ALL: すべて / OFF: ホバー時のみ</div></div><select id="sLabel" class="fsel"><option value="auto">AUTO</option><option value="all">ALL</option><option value="off">OFF</option></select></div>
         <div class="set"><div><div>1画面のノード数</div><div class="d">多いほど一覧性UP・少ないほど見やすい</div></div><select id="sDensity" class="fsel"><option value="0.6">少なめ</option><option value="1">標準</option><option value="1.4">多め</option></select></div>
@@ -751,7 +763,7 @@ const store = {
   get(k, f) { try { const r = localStorage.getItem(k); return r ? JSON.parse(r) : f; } catch (e) { return f; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { if (!store._warned) { store._warned = true; setTimeout(() => toast('⚠ 端末の保存容量が上限です。一部のデータが保存されていません'), 0); } return false; } }
 };
-const DEFAULT_PREFS = { shorts: 'exclude', latestDays: 30, newDays: 3, newSinceVisit: true, lens: 1, parallax: true, labels: 'auto', density: 1, autoNext: true, autoRot: true, fx: true, eco: 'auto' };
+const DEFAULT_PREFS = { cc: 'off', sfx: true, vol: 0.6, dive: true, shorts: 'exclude', latestDays: 30, newDays: 3, newSinceVisit: true, lens: 1, parallax: true, labels: 'auto', density: 1, autoNext: true, autoRot: true, fx: true, eco: 'auto' };
 const state = {
   channels: store.get('aether_channels_v1', []),
   videos: store.get('aether_videos_v1', []),
@@ -1059,6 +1071,152 @@ function wrapTitle(n, maxW, fs) {
   return n.wrap;
 }
 
+// ===== SOUND EFFECTS (Web Audio synthesis, no audio files) =====
+const sfx = { ctx: null, master: null, wet: null, noise: null, wh: null, last: {}, lastLens: new WeakMap() };
+function sfxInit() {
+  if (sfx.ctx || !state.prefs.sfx) { if (sfx.ctx && sfx.ctx.state === 'suspended') sfx.ctx.resume().catch(() => {}); return; }
+  const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+  const c = new AC(); sfx.ctx = c;
+  const comp = c.createDynamicsCompressor(); comp.threshold.value = -18; comp.connect(c.destination);
+  sfx.master = c.createGain(); sfx.master.gain.value = state.prefs.vol; sfx.master.connect(comp);
+  const dl = c.createDelay(1); dl.delayTime.value = 0.17; const fb = c.createGain(); fb.gain.value = 0.32; const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3200;
+  dl.connect(lp).connect(fb).connect(dl); const wo = c.createGain(); wo.gain.value = 0.5; lp.connect(wo).connect(sfx.master);
+  sfx.wet = dl;
+  const buf = c.createBuffer(1, c.sampleRate * 2, c.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  sfx.noise = buf;
+  const src = c.createBufferSource(); src.buffer = buf; src.loop = true;
+  const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 500; bp.Q.value = 0.9;
+  const g = c.createGain(); g.gain.value = 0; src.connect(bp).connect(g).connect(sfx.master); src.start();
+  sfx.wh = { bp, g };
+}
+function sfxOk(key, gap) { if (!sfx.ctx || !state.prefs.sfx || state.playing) return false; const n = performance.now(); if (gap && n - (sfx.last[key] || 0) < gap) return false; sfx.last[key] = n; return true; }
+function tone(type, f0, f1, dur, vol, o = {}) {
+  const c = sfx.ctx, t = c.currentTime + (o.at || 0), osc = c.createOscillator(), g = c.createGain();
+  osc.type = type; osc.frequency.setValueAtTime(f0, t); if (f1 !== f0) osc.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + (o.atk || 0.005)); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  let node = osc;
+  if (o.lp) { const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.setValueAtTime(o.lp, t); if (o.lp2) f.frequency.exponentialRampToValueAtTime(o.lp2, t + dur); osc.connect(f); node = f; }
+  node.connect(g); g.connect(sfx.master); if (o.send) { const s = c.createGain(); s.gain.value = o.send; g.connect(s).connect(sfx.wet); }
+  osc.start(t); osc.stop(t + dur + 0.05);
+}
+function noiseHit(dur, vol, f0, f1, o = {}) {
+  const c = sfx.ctx, t = c.currentTime + (o.at || 0), src = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
+  src.buffer = sfx.noise; f.type = o.type || 'bandpass'; f.Q.value = o.q || 1.2; f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(f1, t + dur);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + (o.atk || 0.01)); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  src.connect(f).connect(g).connect(sfx.master); if (o.send) { const s = sfx.ctx.createGain(); s.gain.value = o.send; g.connect(s).connect(sfx.wet); }
+  src.start(t, Math.random()); src.stop(t + dur + 0.05);
+}
+const SFX = {
+  hover() { if (sfxOk('hover', 60)) tone('sine', 1700, 2400, 0.045, 0.035, { send: 0.25 }); },
+  tick(i) { if (sfxOk('tick', 38)) tone('triangle', 900 + (i % 7) * 140, 700 + (i % 7) * 120, 0.05, 0.03, { send: 0.35 }); },
+  lock() { if (!sfxOk('lock', 80)) return; tone('square', 660, 660, 0.05, 0.035, { lp: 2400 }); tone('square', 990, 990, 0.09, 0.035, { lp: 2600, at: 0.06, send: 0.5 }); },
+  ping() { if (!sfxOk('ping', 120)) return; tone('sine', 520, 260, 0.35, 0.06, { send: 0.7 }); noiseHit(0.25, 0.05, 3000, 600, { send: 0.4 }); },
+  ui() { if (sfxOk('ui', 50)) tone('sine', 1180, 1180, 0.035, 0.03); },
+  magi(ok) { if (!sfxOk('magi' + Math.random(), 0)) return; ok ? (tone('square', 1320, 1320, 0.07, 0.03, { lp: 3000 }), tone('square', 1760, 1760, 0.1, 0.03, { lp: 3000, at: 0.08, send: 0.4 })) : tone('sawtooth', 220, 180, 0.22, 0.04, { lp: 900 }); },
+  alarm() { if (!sfxOk('alarm', 1500)) return; for (let k = 0; k < 3; k++) { tone('square', 880, 880, 0.14, 0.035, { at: k * 0.32, lp: 2200 }); tone('square', 660, 660, 0.14, 0.035, { at: k * 0.32 + 0.16, lp: 2200 }); } },
+  dive() {
+    if (!sfx.ctx || !state.prefs.sfx) return; const c = sfx.ctx;
+    tone('sawtooth', 70, 1400, 1.25, 0.05, { lp: 300, lp2: 6000, atk: 0.2, send: 0.5 });
+    tone('sine', 140, 40, 1.4, 0.12, { atk: 0.05 });
+    noiseHit(1.3, 0.06, 200, 9000, { type: 'bandpass', q: 0.7, atk: 0.4, send: 0.4 });
+    for (let k = 0; k < 9; k++) tone('sine', 1800 + Math.random() * 2400, 1800 + Math.random() * 2400, 0.03, 0.02, { at: 0.15 + k * 0.1, send: 0.6 });
+    noiseHit(0.5, 0.09, 6000, 300, { at: 1.15, type: 'lowpass', q: 0.5 });
+  },
+  motion(m) {               // continuous "nodes moving" texture
+    if (!sfx.wh) return; const c = sfx.ctx, on = state.prefs.sfx && !state.playing && !document.hidden;
+    const v = on ? Math.min(0.11, m * 1.6) : 0;
+    sfx.wh.g.gain.setTargetAtTime(v, c.currentTime, 0.08);
+    sfx.wh.bp.frequency.setTargetAtTime(350 + Math.min(1, m * 8) * 2600, c.currentTime, 0.1);
+  }
+};
+['pointerdown', 'keydown', 'touchstart'].forEach(ev => window.addEventListener(ev, sfxInit, { passive: true }));
+document.addEventListener('visibilitychange', () => { if (sfx.ctx) document.hidden ? sfx.ctx.suspend() : sfx.ctx.resume(); });
+
+// ===== MEMORY DIVE transition =====
+let diving = false;
+function originRect(id) {
+  if (state.mode === 'nerve') { const n = net.vids.find(x => x.id === id); if (n && n.g && !n.g.dot) return { x: n.g.x, y: n.g.y, w: n.g.w, h: n.g.h }; }
+  const els = [document.querySelector(`#mgrid .card[data-v="${id}"] .th`), $('magiModal').classList.contains('show') ? document.querySelector('#mgCand img') : null, $('insThumbBox')];
+  for (const el of els) { if (!el) continue; const r = el.getBoundingClientRect(); if (r.width > 4 && r.bottom > 0 && r.top < innerHeight) return { x: r.left, y: r.top, w: r.width, h: r.height }; }
+  const w = Math.min(innerWidth * 0.5, 360); return { x: innerWidth / 2 - w / 2, y: innerHeight / 2 - w * 9 / 32, w, h: w * 9 / 16 };
+}
+function dive(v, from, onMid) {
+  return new Promise(res => {
+    const cv = $('dive'), c = cv.getContext('2d'), W = innerWidth, H = innerHeight, dpr = Math.min(devicePixelRatio || 1, ECO() ? 1.25 : 2);
+    cv.width = W * dpr; cv.height = H * dpr; c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    cv.classList.remove('out'); cv.classList.add('on'); diving = true;
+    const img = new Image(); img.src = `https://i.ytimg.com/vi/${v.id}/hqdefault.jpg`; const low = thumbs[v.id];
+    const mem = state.videos.filter(x => x.channelId === v.channelId && x.id !== v.id).slice(0, ECO() ? 5 : 10).map(x => { const im = new Image(); im.src = `https://i.ytimg.com/vi/${x.id}/mqdefault.jpg`; return { im, a: Math.random() * 6.283, d: Math.random(), s: 0.6 + Math.random() * 0.6 }; });
+    const acc = chOf(v.channelId).accent || '#22e6ff', D = ECO() ? 1200 : 1500, t0 = performance.now();
+    const GL = 'アイウエオカキクケコサシスセソタチツテト0123456789ABCDEF記憶電脳接続';
+    const streaks = Array.from({ length: ECO() ? 50 : 110 }, () => ({ a: Math.random() * 6.283, d: Math.random(), sp: 0.6 + Math.random() * 1.4, ch: GL[(Math.random() * GL.length) | 0], txt: Math.random() < 0.3 }));
+    const tw = Math.max(W, H * 16 / 9) * 1.12, tgt = { x: W / 2 - tw / 2, y: H / 2 - tw * 9 / 32, w: tw, h: tw * 9 / 16 };
+    const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    const sector = (hashStr(v.id) >>> 0).toString(16).toUpperCase().padStart(8, '0');
+    const title = cleanTitle(v.title); let mid = false;
+    (function draw(now) {
+      const t = Math.min(1, (now - t0) / D), cx = W / 2, cy = H / 2, M = Math.max(W, H), e = ease(Math.min(1, t / 0.9)), speed = 0.2 + ease(t) * 3;
+      c.clearRect(0, 0, W, H);
+      c.fillStyle = `rgba(0,3,6,${Math.min(1, t * 2.8)})`; c.fillRect(0, 0, W, H);
+      const r = { x: from.x + (tgt.x - from.x) * e, y: from.y + (tgt.y - from.y) * e, w: from.w + (tgt.w - from.w) * e, h: from.h + (tgt.h - from.h) * e };
+      const src = img.complete && img.naturalWidth ? img : (low && low.complete && low.naturalWidth ? low : null);
+      const base = 0.4 + 0.6 * Math.min(1, t * 2.2);
+      if (src) {                               // the target memory, with chromatic split
+        const sp = 2 + e * 14;
+        c.globalCompositeOperation = 'lighter'; c.globalAlpha = base * 0.4;
+        c.drawImage(src, r.x - sp, r.y, r.w, r.h); c.drawImage(src, r.x + sp, r.y, r.w, r.h);
+        c.globalCompositeOperation = 'source-over'; c.globalAlpha = base; c.drawImage(src, r.x, r.y, r.w, r.h); c.globalAlpha = 1;
+      } else { c.fillStyle = hexA(acc, 0.3); c.fillRect(r.x, r.y, r.w, r.h); }
+      c.fillStyle = `rgba(0,40,50,${0.28 * e})`; c.fillRect(r.x, r.y, r.w, r.h);
+      c.fillStyle = 'rgba(0,0,0,.18)'; for (let y = Math.max(0, r.y); y < Math.min(H, r.y + r.h); y += 3) c.fillRect(Math.max(0, r.x), y, Math.min(W, r.w), 1);
+      if (t > 0.25) for (let k = 0; k < (ECO() ? 2 : 4); k++) { const sy = Math.random() * H, sh = 4 + Math.random() * 18, dx = (Math.random() - 0.5) * 60 * e; try { c.drawImage(cv, 0, sy * dpr, W * dpr, sh * dpr, dx, sy, W, sh); } catch (er) {} }
+      { const g = c.createRadialGradient(cx, cy, Math.min(W, H) * 0.18, cx, cy, M * 0.75); g.addColorStop(0, 'rgba(0,3,6,0)'); g.addColorStop(1, `rgba(0,3,6,${0.85 * e})`); c.fillStyle = g; c.fillRect(0, 0, W, H); }
+      for (let i = 0; i < 16; i++) {          // memory gates (hex tunnel)
+        const z = (i / 16 + t * speed * 0.9) % 1, r = 18 + Math.pow(z, 2.6) * M * 1.1, al = Math.sin(z * Math.PI) * Math.min(1, t * 3) * 0.75;
+        c.strokeStyle = i % 3 === 0 ? `rgba(255,140,26,${al})` : hexA(i % 2 ? acc : '#22e6ff', al); c.lineWidth = 1 + z * 3;
+        c.beginPath(); for (let k = 0; k < 6; k++) { const a = -Math.PI / 2 + k * Math.PI / 3 + t * 1.6 + i * 0.08; c[k ? 'lineTo' : 'moveTo'](cx + Math.cos(a) * r, cy + Math.sin(a) * r); } c.closePath(); c.stroke();
+      }
+      c.textAlign = 'left';
+      streaks.forEach(s => {                   // data streams
+        const z = (s.d + t * s.sp * speed * 0.55) % 1, r0 = Math.pow(z, 2.2) * M * 0.9, x = cx + Math.cos(s.a) * r0, y = cy + Math.sin(s.a) * r0, al = z * Math.min(1, t * 3);
+        if (s.txt) { c.font = `${10 + z * 22}px "JetBrains Mono", monospace`; c.fillStyle = `rgba(0,255,163,${al * 0.8})`; c.fillText(s.ch, x, y); }
+        else { const len = 8 + z * 90 * speed; c.strokeStyle = `rgba(160,240,255,${al * 0.7})`; c.lineWidth = 1 + z; c.beginPath(); c.moveTo(x, y); c.lineTo(x + Math.cos(s.a) * len, y + Math.sin(s.a) * len); c.stroke(); }
+      });
+      mem.forEach(m => {                       // other memories of the same channel flying past
+        if (!m.im.complete || !m.im.naturalWidth) return;
+        const z = (m.d + t * 1.4) % 1, r0 = 40 + z * z * M * 0.8, w = (30 + z * 260) * m.s, x = cx + Math.cos(m.a) * r0 - w / 2, y = cy + Math.sin(m.a) * r0 - w * 9 / 32;
+        c.globalAlpha = Math.sin(z * Math.PI) * 0.5 * Math.min(1, t * 2); c.drawImage(m.im, x, y, w, w * 9 / 16); c.strokeStyle = acc; c.lineWidth = 1; c.strokeRect(x, y, w, w * 9 / 16); c.globalAlpha = 1;
+      });
+      c.strokeStyle = acc; c.lineWidth = 2; const L = 18 + 30 * e;
+      [[r.x, r.y, 1, 1], [r.x + r.w, r.y, -1, 1], [r.x, r.y + r.h, 1, -1], [r.x + r.w, r.y + r.h, -1, -1]].forEach(([x, y, sx, sy]) => { c.beginPath(); c.moveTo(x + sx * L, y); c.lineTo(x, y); c.lineTo(x, y + sy * L); c.stroke(); });
+      const top = 40 + (parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sat')) || 0);
+      c.font = '700 12px "JetBrains Mono", monospace'; c.fillStyle = '#22e6ff'; c.fillText(`DIVE // MEMORY ACCESS  ${v.id}`, 20, top);
+      c.fillStyle = '#ff8c1a'; c.fillText(`SECTOR 0x${sector}  ·  SYNC ${Math.floor(e * 100)}%`, 20, top + 18);
+      c.textAlign = 'center'; c.font = '700 15px "Noto Sans JP", sans-serif'; c.fillStyle = '#eaffff'; c.fillText('記憶領域へ侵入中…', cx, H - 92);
+      const shown = title.slice(0, Math.floor(title.length * Math.min(1, t * 1.6)));
+      c.font = '500 13px "Noto Sans JP", sans-serif'; c.fillStyle = 'rgba(234,255,255,.85)'; { let tx = shown; while (tx.length > 1 && c.measureText(tx + '…').width > W - 40) tx = tx.slice(0, -1); c.fillText(tx === shown ? tx : tx + '…', cx, H - 68); }
+      c.fillStyle = 'rgba(34,230,255,.2)'; c.fillRect(cx - 120, H - 54, 240, 3); c.fillStyle = acc; c.fillRect(cx - 120, H - 54, 240 * e, 3);
+      if (t > 0.86) { c.fillStyle = `rgba(220,255,255,${(t - 0.86) / 0.14 * 0.85})`; c.fillRect(0, 0, W, H); }
+      if (!mid && t >= 0.4) { mid = true; onMid && onMid(); }
+      if (t < 1) requestAnimationFrame(draw);
+      else { cv.classList.add('out'); setTimeout(() => { cv.classList.remove('on', 'out'); c.clearRect(0, 0, W, H); diving = false; }, 400); res(); }
+    })(t0);
+  });
+}
+
+// ===== captions control (YouTube has no official "force off" parameter) =====
+let ccGuard = 0;
+function applyCaptions(p, force) {
+  if (!p || state.prefs.cc === 'yt') return;
+  if (!force && ccGuard > 6) return; ccGuard++;
+  try {
+    if (state.prefs.cc === 'off') { p.unloadModule('captions'); p.unloadModule('cc'); }
+    else { p.loadModule('captions'); p.setOption('captions', 'track', { languageCode: 'ja' }); }
+  } catch (e) {}
+}
+function updateCCBtn() { const b = $('pCC'); if (!b) return; b.textContent = '字幕: ' + ({ off: 'OFF', on: 'ON', yt: 'AUTO' }[state.prefs.cc]); b.classList.toggle('ok', state.prefs.cc === 'on'); }
+
 // ===== power-aware render loop =====
 const ECO = () => state.prefs.eco === 'on' || (state.prefs.eco === 'auto' && IS_TOUCH);
 const MODALS = ['playerModal', 'cfgModal', 'helpModal', 'setupModal', 'magiModal'];
@@ -1074,7 +1232,7 @@ function tick(t) {
   loop.raf = 0;
   if (shouldPause()) {                    // draw one last still frame, then stop completely
     if (!loop.drawnWhilePaused && !document.hidden && state.mode === 'nerve') { frame(); }
-    loop.drawnWhilePaused = true; loop.paused = true; document.body.classList.add('sleeping'); return;
+    loop.drawnWhilePaused = true; loop.paused = true; document.body.classList.add('sleeping'); SFX.motion(0); return;
   }
   loop.paused = false; loop.drawnWhilePaused = false; document.body.classList.remove('sleeping');
   loop.raf = requestAnimationFrame(tick);
@@ -1157,6 +1315,11 @@ function frame() {
   const nodes = [...net.hubs, ...net.vids];
   nodes.forEach(n => settle(n, project(n.x, n.y, n.z), L));
   net.vids.forEach(n => n.g = cardGeom(n));
+  if (sfx.ctx) {
+    let mv = Math.abs(net.vYaw) * 6 + Math.abs(net.vPitch) * 6 + (net.drag && net.drag.moved ? 0.04 : 0);
+    net.vids.forEach((n, i) => { mv += (Math.abs(n.vx) + Math.abs(n.vy)) * 0.0009; const was = sfx.lastLens.get(n) || 0; if (n.lens > 0.4 && was <= 0.4) SFX.tick(i); sfx.lastLens.set(n, n.lens); });
+    SFX.motion(mv);
+  }
   if (IS_TOUCH || isMobile()) separate();
   const q = state.q.trim();
   const dim = n => (q && n.type === 'vid' && !n.match) ? 0.13 : 1;
@@ -1375,6 +1538,7 @@ canvas.addEventListener('pointermove', e => {
     net.drag.lx = e.clientX; net.drag.ly = e.clientY; return;
   }
   const n = pick(e.clientX, e.clientY);
+  if (n && n !== net.hover && e.pointerType === 'mouse') SFX.hover();
   net.hover = n; canvas.classList.toggle('pointing', !!n); showTip(n, e.clientX, e.clientY);
 });
 function endPointer(e) {
@@ -1384,10 +1548,10 @@ function endPointer(e) {
   if (e.pointerType !== 'mouse') { net.ptr.active = false; net.hover = null; }
   if (!d || d.moved || e.type === 'pointercancel') return;
   const n = (e.pointerType !== 'mouse' ? d.node : null) || pick(e.clientX, e.clientY, e.pointerType !== 'mouse') || d.node;
-  if (!n) { kick(e.clientX, e.clientY, 9); return; }
+  if (!n) { kick(e.clientX, e.clientY, 9); SFX.ping(); return; }
   if (n.type === 'hub') selectSector(state.sel === n.channelId ? 'ALL' : n.channelId);
   else if (state.inspected === n.id) openPlayer(n.id);
-  else { inspect(n.video, true); vibrate(12); }
+  else { inspect(n.video, true); vibrate(12); SFX.lock(); }
 }
 canvas.addEventListener('pointerup', endPointer);
 canvas.addEventListener('pointercancel', endPointer);
@@ -1446,6 +1610,7 @@ function setShorts(m) {
   syslog(`SHORTS FILTER >> ${m.toUpperCase()}`); renderAll();
 }
 function setTab(t) {
+  SFX.ui();
   state.tab = t; state.page = 1;
   if (t === 'deep') { state.seed = Math.floor(Math.random() * 99999); pulseWave(); }
   syslog(`MODE >> ${t.toUpperCase()}`); renderAll();
@@ -1558,7 +1723,7 @@ async function runMagi() {
       u.querySelector('.vd').textContent = votes[i] ? '承 認' : '否 決';
       u.querySelector('.why').textContent = MAGI_WHY[i][votes[i] ? 0 : 1](v);
       log(`${['MELCHIOR·1', 'BALTHASAR·2', 'CASPER·3'][i]} : ${votes[i] ? 'APPROVE' : 'REJECT'}`);
-      vibrate(10); await sleep(round ? 220 : 420);
+      vibrate(10); SFX.magi(votes[i]); await sleep(round ? 220 : 420);
     }
     const n = votes.filter(Boolean).length;
     if (!best || n > best.n) best = { v, n };
@@ -1701,9 +1866,18 @@ function saveProgress() {
   store.set('aether_progress_v1', state.progress);
   const left = d - t; $('pResume').textContent = `${secToDur(t)} / ${secToDur(d)}`;
 }
-async function openPlayer(id, opts = {}) {
+function openPlayer(id, opts = {}) {
   const v = vidById(id); if (!v) return;
-  state.playing = id;
+  const open = $('playerModal').classList.contains('show');
+  if (open || diving || opts.noDive || !state.prefs.dive || matchMedia('(prefers-reduced-motion: reduce)').matches) return openPlayerCore(id, opts);
+  const from = originRect(id);
+  SFX.dive(); document.body.classList.add('diving');
+  openPlayerCore(id, opts);                       // start loading the player right away (keeps the user gesture for autoplay)
+  dive(v, from, () => document.body.classList.remove('diving'));
+}
+async function openPlayerCore(id, opts = {}) {
+  const v = vidById(id); if (!v) return;
+  state.playing = id; ccGuard = 0; updateCCBtn(); SFX.motion(0);
   if (!opts.keepQueue) state.queue = currentList().map(x => x.id);
   if (!state.queue.includes(id)) state.queue.unshift(id);
   state.history = [{ id, at: Date.now() }, ...state.history.filter(h => h.id !== id)].slice(0, 300);
@@ -1726,16 +1900,18 @@ async function openPlayer(id, opts = {}) {
   $('pWarn').classList.remove('show');
   const ok = await loadYTApi();
   if (state.playing !== id) return;
-  const pv = { autoplay: 1, rel: 0, playsinline: 1, start };
+  const pv = { autoplay: 1, rel: 0, playsinline: 1, start, hl: 'ja', cc_load_policy: state.prefs.cc === 'on' ? 1 : 0 };
+  if (state.prefs.cc === 'on') pv.cc_lang_pref = 'ja';
   if (/^https?:$/.test(location.protocol)) pv.origin = location.origin;
   if (ok) {
     usingAPI = true;
     yt = new YT.Player(mount, {
       host: 'https://www.youtube-nocookie.com', videoId: id, playerVars: pv, width: '100%', height: '100%',
       events: {
-        onReady: e => { try { e.target.getIframe().setAttribute('referrerpolicy', 'strict-origin-when-cross-origin'); } catch (er) {} },
+        onReady: e => { try { e.target.getIframe().setAttribute('referrerpolicy', 'strict-origin-when-cross-origin'); } catch (er) {} applyCaptions(e.target); },
+        onApiChange: e => { if (state.prefs.cc === 'off') applyCaptions(e.target); },
         onStateChange: e => {
-          if (e.data === 1) { clearInterval(ytTimer); ytTimer = setInterval(saveProgress, 4000); }
+          if (e.data === 1) { clearInterval(ytTimer); ytTimer = setInterval(saveProgress, 4000); if (ccGuard < 3) { applyCaptions(e.target); setTimeout(() => applyCaptions(e.target), 1200); } }
           if (e.data === 2) saveProgress();
           if (e.data === 0) { saveProgress(); setWatched(id, true); refreshAfterChange(); if (state.prefs.autoNext) step(1, true); }
         },
@@ -1870,6 +2046,7 @@ async function fetchArchive(chId) {
   finally { archBusy = null; renderAll(); }
 }
 function patternBlue(n) {
+  SFX.alarm();
   const el = $('pblue');
   el.innerHTML = `◆ パターン青 — 新規ノード検出<small>NEW SIGNAL × ${n} — タップで最新へ</small>`;
   el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
@@ -2032,6 +2209,7 @@ function renderCfg() {
   const on = !!state.apiKey;
   $('apiState').textContent = on ? 'API v3 LIVE' : 'PRESET+RSS'; $('apiKey').value = state.apiKey; $('linkTxt').textContent = on ? 'API v3 LINK' : 'PRESET LINK';
   $('sLatest').value = String(state.prefs.latestDays); $('sNew').value = String(state.prefs.newDays); $('sNewVisit').checked = !!state.prefs.newSinceVisit;
+  $('sVol').value = state.prefs.vol; $('sSfx').checked = !!state.prefs.sfx; $('sDive').checked = !!state.prefs.dive; $('sCC').value = state.prefs.cc;
   $('sLens').value = state.prefs.lens; $('sPar').checked = state.prefs.parallax; $('sLabel').value = state.prefs.labels; $('sDensity').value = String(state.prefs.density);
   renderGenres();
   const gOpts = sel => state.genres.map(g => `<option value="${esc(g.name)}" ${g.name === sel ? 'selected' : ''}>${esc(g.name)}</option>`).join('') + '<option value="__new">＋ 新しいジャンル…</option>';
@@ -2072,6 +2250,7 @@ function applyPrefs() {
   $('fxBtn').textContent = state.prefs.fx ? 'FX: ON' : 'FX: OFF'; $('fxBtn').classList.toggle('on', state.prefs.fx);
   $('rotBtn').classList.toggle('on', state.prefs.autoRot);
   $('labelBtn').textContent = 'LABEL: ' + state.prefs.labels.toUpperCase();
+  $('sfxBtn').textContent = 'SFX: ' + (state.prefs.sfx ? 'ON' : 'OFF'); $('sfxBtn').classList.toggle('on', !!state.prefs.sfx); updateCCBtn();
   $('ecoBtn').textContent = 'ECO: ' + state.prefs.eco.toUpperCase() + (state.prefs.eco === 'auto' ? (ECO() ? '·ON' : '·OFF') : '');
   $('ecoBtn').classList.toggle('on', ECO());
   if ($('sEco')) $('sEco').value = state.prefs.eco;
@@ -2147,6 +2326,8 @@ function initEvents() {
   $('pClose').onclick = closePlayer;
   $('pSave').onclick = () => state.playing && toggleSave(state.playing);
   $('pPrev').onclick = () => step(-1); $('pNext').onclick = () => step(1); $('pErrNext').onclick = () => step(1);
+  $('pCC').onclick = () => { const o = ['off', 'on', 'yt']; state.prefs.cc = o[(o.indexOf(state.prefs.cc) + 1) % 3]; savePrefs(); updateCCBtn(); if (yt) applyCaptions(yt, true); toast({ off: '字幕：OFF', on: '字幕：ON（日本語）', yt: '字幕：YouTubeの設定に従う' }[state.prefs.cc]); };
+  $('sfxBtn').onclick = () => { state.prefs.sfx = !state.prefs.sfx; savePrefs(); applyPrefs(); if (state.prefs.sfx) { sfxInit(); SFX.ui(); } else SFX.motion(0); };
   $('pAuto').onclick = () => { state.prefs.autoNext = !state.prefs.autoNext; savePrefs(); applyPrefs(); };
   $('pShare').onclick = () => state.playing && share(state.playing);
   $('pWarnTry').onclick = () => state.playing && openPlayer(state.playing, { keepQueue: true, force: true });
@@ -2161,6 +2342,11 @@ function initEvents() {
   $('sLatest').onchange = e => { state.prefs.latestDays = +e.target.value; savePrefs(); state.page = 1; renderAll(); toast(`最新タブ：${+e.target.value ? '直近' + e.target.value + '日' : '全期間'}`); };
   $('sNew').onchange = e => { state.prefs.newDays = +e.target.value; savePrefs(); renderAll(); };
   $('sNewVisit').onchange = e => { state.prefs.newSinceVisit = e.target.checked; savePrefs(); renderAll(); };
+  $('sVol').oninput = e => { state.prefs.vol = +e.target.value; savePrefs(); if (sfx.master) sfx.master.gain.value = state.prefs.vol; };
+  $('sVol').onchange = () => { sfxInit(); SFX.lock(); };
+  $('sSfx').onchange = e => { state.prefs.sfx = e.target.checked; savePrefs(); applyPrefs(); if (state.prefs.sfx) { sfxInit(); SFX.ui(); } else SFX.motion(0); };
+  $('sDive').onchange = e => { state.prefs.dive = e.target.checked; savePrefs(); };
+  $('sCC').onchange = e => { state.prefs.cc = e.target.value; savePrefs(); updateCCBtn(); if (yt) applyCaptions(yt, true); };
   $('sDensity').onchange = e => { state.prefs.density = +e.target.value; savePrefs(); state.page = 1; renderStage(); };
   $('nAdd').onclick = async () => {
     try {
@@ -2223,7 +2409,7 @@ function initEvents() {
 // =============================================================================
 function boot() {
   const lines = [
-    '<span class="c">MY NERVE TUBE NET</span> // GHOST ARCHIVE TUNER  v5.3',
+    '<span class="c">MY NERVE TUBE NET</span> // GHOST ARCHIVE TUNER  v5.4',
     '> MAGI SYSTEM: MELCHIOR·1 / BALTHASAR·2 / CASPER·3 ... ONLINE',
     '> initializing cyberbrain interface ........ OK',
     `> mounting ${state.channels.length} hubs / ${state.videos.length} memory nodes ... OK`,
