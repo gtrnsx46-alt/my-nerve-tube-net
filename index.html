@@ -314,7 +314,7 @@ select.fsel{font-family:var(--mono);font-size:10px;background:#020a12;border:1px
 #pUnmute{position:absolute;z-index:4;left:50%;top:14px;transform:translateX(-50%);display:none;padding:12px 20px;background:rgba(1,6,12,.92);border:2px solid var(--c1);color:var(--c1);font-family:var(--jp);font-size:14px;font-weight:700;box-shadow:0 0 22px rgba(34,230,255,.5);white-space:nowrap;max-width:94%;overflow:hidden;text-overflow:ellipsis}
 #pUnmute.show{display:block;animation:tIn .3s}
 body.theater #pUnmute{top:calc(14px + var(--sat))}
-#pHint{position:absolute;z-index:2;left:50%;top:64%;transform:translateX(-50%);display:none;pointer-events:none;padding:7px 12px;background:rgba(1,6,12,.88);border:1px solid var(--c2);color:var(--c2);font-family:var(--mono);font-size:11px;white-space:nowrap;max-width:94%;overflow:hidden;text-overflow:ellipsis}
+#pHint{position:absolute;z-index:2;left:50%;top:calc(50% + 52px);transform:translateX(-50%);display:none;pointer-events:none;padding:9px 14px;font-weight:700;background:rgba(1,6,12,.88);border:1px solid var(--c2);color:var(--c2);font-family:var(--mono);font-size:11px;white-space:nowrap;max-width:94%;overflow:hidden;text-overflow:ellipsis}
 #pHint.show{display:block;animation:blink 1.6s infinite}
 .card.sel{border-color:#fff;box-shadow:0 0 0 1px #fff,0 0 24px color-mix(in srgb,var(--ca) 60%,transparent)}
 /* ===== theater / fullscreen after dive ===== */
@@ -683,7 +683,7 @@ textarea.inp{resize:vertical;min-height:190px;line-height:1.6;white-space:pre;ov
         <div class="set"><div><div>効果音</div><div class="d">ノードの移動・選択・ダイブ・MAGI審議などに電子音を付けます（再生中は自動で無音）</div></div><span style="display:flex;gap:10px;align-items:center"><input type="range" id="sVol" min="0" max="1" step="0.05" /><input type="checkbox" id="sSfx" /></span></div>
         <div class="set"><div><div>球体を回すときの音</div><div class="d">電子音：小さな「ピッ」というデータ音がまばらに鳴る ／ 風：低くやわらかい風の音 ／ なし</div></div><span style="display:flex;gap:10px;align-items:center"><input type="range" id="sRotVol" min="0" max="1" step="0.05" title="音量" /><select id="sRot" class="fsel"><option value="chirp">電子音</option><option value="air">風</option><option value="off">なし</option></select></span></div>
         <div class="set"><div><div>ダイブ演出</div><div class="d">情報欄の「▶ 再生」で、動画の記憶へ潜り込むトランジションを表示します</div></div><input type="checkbox" id="sDive" /></div>
-        <div class="set"><div><div>iPhone/iPadの自動再生</div><div class="d">無音で自動再生：ダイブ後すぐ再生が始まり、「🔊 タップで音声ON」で音を出します ／ 再生ボタンを押す：音声ありで始めたい場合（毎回 ▶ をタップ）</div></div><select id="sIos" class="fsel"><option value="muted">無音で自動再生</option><option value="tap">再生ボタンを押す</option></select></div>
+        <div class="set"><div><div>iPhone/iPadの自動再生</div><div class="d">iPhoneは仕様上、埋め込み動画をページ側から再生開始できません。「▶をタップして再生」：ダイブ後に1回タップで音声あり・字幕なしで再生（おすすめ）／「無音で自動再生を試す」：機種やiOSのバージョンによっては無音で自動再生されます</div></div><select id="sIos" class="fsel"><option value="tap">▶をタップして再生</option><option value="muted">無音で自動再生を試す</option></select></div>
         <div class="set"><div><div>ダイブ後は全画面で再生</div><div class="d">ダイブ演出のあと、動画を全画面で再生します（iPhoneはブラウザの仕様で画面いっぱい表示。横向きにすると大きく見られます）</div></div><input type="checkbox" id="sDiveFull" /></div>
         <div class="set"><div><div>字幕</div><div class="d">OFF：再生開始時に字幕を自動で消します ／ ON：日本語字幕を表示 ／ YouTube任せ：アカウントや端末の設定に従います</div></div><select id="sCC" class="fsel"><option value="off">OFF</option><option value="on">ON</option><option value="yt">YouTube任せ</option></select></div>
         <div class="set"><div><div>パララックス</div><div class="d">マウス位置に合わせて球体がわずかに傾く</div></div><input type="checkbox" id="sPar" /></div>
@@ -805,7 +805,7 @@ const store = {
   get(k, f) { try { const r = localStorage.getItem(k); return r ? JSON.parse(r) : f; } catch (e) { return f; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { if (!store._warned) { store._warned = true; setTimeout(() => toast('⚠ 端末の保存容量が上限です。一部のデータが保存されていません'), 0); } return false; } }
 };
-const DEFAULT_PREFS = { iosAuto: 'muted', searchOpen: null, diveFull: true, rot: 'chirp', rotVol: 0.5, cc: 'off', sfx: true, vol: 0.6, dive: true, shorts: 'exclude', latestDays: 30, newDays: 3, newSinceVisit: true, lens: 1, parallax: true, labels: 'auto', density: 1, autoNext: true, autoRot: true, fx: true, eco: 'auto' };
+const DEFAULT_PREFS = { iosMode: 'tap', searchOpen: null, diveFull: true, rot: 'chirp', rotVol: 0.5, cc: 'off', sfx: true, vol: 0.6, dive: true, shorts: 'exclude', latestDays: 30, newDays: 3, newSinceVisit: true, lens: 1, parallax: true, labels: 'auto', density: 1, autoNext: true, autoRot: true, fx: true, eco: 'auto' };
 const state = {
   channels: store.get('aether_channels_v1', []),
   videos: store.get('aether_videos_v1', []),
@@ -1277,9 +1277,9 @@ function enforceCaptions(p, id) {
   ccRearmed = true;
   const t = Math.floor((p.getCurrentTime && p.getCurrentTime()) || 0);
   syslog('CAPTIONS FORCED BY PLAYER >> re-arming without autoplay', 'wr');
-  const keepAuto = IS_IOS && state.prefs.iosAuto !== 'tap';
+  const keepAuto = IS_IOS && state.prefs.iosMode === 'muted';
   mountYT(id, resetMount(), Object.assign(basePv(id, t), keepAuto ? { autoplay: 1, mute: 1 } : { autoplay: 0 }));
-  if (!keepAuto) $('pHint').classList.add('show');
+  if (!keepAuto) showHint('▶ 字幕なしで再生するため、動画の再生ボタンを押してください');
 }
 function setCaptionsLive(p) {          // user toggled the 字幕 button while a video is open
   if (!p) return;
@@ -1996,9 +1996,12 @@ function basePv(id, start) {
   if (/^https?:$/.test(location.protocol)) pv.origin = location.origin;
   // iPhone/iPad Safari never allows an embedded video to start WITH sound unless the tap lands inside
   // the YouTube frame itself. Muted autoplay is allowed, so start muted and offer a one-tap unmute.
-  if (IS_IOS && state.prefs.iosAuto !== 'tap') pv.mute = 1;
+  // Verified on a real iPhone: even muted autoplay does not start in the embedded player, so by default
+  // we load the video ready-to-play and the user's tap on YouTube's ▶ starts it (with sound, no forced captions).
+  if (IS_IOS) { if (state.prefs.iosMode === 'muted') pv.mute = 1; else pv.autoplay = 0; }
   return pv;
 }
+function showHint(t) { const h = $('pHint'); h.textContent = t; h.classList.add('show'); }
 function showUnmute(p) { const b = $('pUnmute'); b.classList.add('show'); b.textContent = '🔊 タップで音声ON'; b.onclick = () => unmuteNow(p); }
 function hideUnmute() { $('pUnmute').classList.remove('show'); }
 function unmuteNow(p) {
@@ -2017,7 +2020,7 @@ function mountYT(id, mount, pv) {
       onReady: e => { try { e.target.getIframe().setAttribute('referrerpolicy', 'strict-origin-when-cross-origin'); } catch (er) {} },
       onApiChange: e => setTimeout(() => enforceCaptions(e.target, id), 300),
       onAutoplayBlocked: e => {               // browser refused autoplay with sound → retry muted, offer unmute
-        if (state.prefs.iosAuto === 'tap') return;
+        if (IS_IOS && state.prefs.iosMode !== 'muted') { showHint('▶ をタップして再生（音声あり）'); return; }
         try { e.target.mute(); e.target.playVideo(); } catch (er) {}
         showUnmute(e.target);
       },
@@ -2067,6 +2070,7 @@ async function openPlayerCore(id, opts = {}) {
   const pv = basePv(id, start);
   if (ok) {
     mountYT(id, mount, pv);
+    if (IS_IOS && state.prefs.iosMode !== 'muted') showHint('▶ をタップして再生（音声あり）');
   } else {
     usingAPI = false; // fallback: plain iframe
     const ifr = document.createElement('iframe');
@@ -2355,7 +2359,7 @@ function renderCfg() {
   $('apiState').textContent = on ? 'API v3 LIVE' : 'PRESET+RSS'; $('apiKey').value = state.apiKey; $('linkTxt').textContent = on ? 'API v3 LINK' : 'PRESET LINK';
   $('sLatest').value = String(state.prefs.latestDays); $('sNew').value = String(state.prefs.newDays); $('sNewVisit').checked = !!state.prefs.newSinceVisit;
   $('sRot').value = state.prefs.rot || 'chirp'; $('sRotVol').value = state.prefs.rotVol ?? 0.5;
-  $('sDiveFull').checked = state.prefs.diveFull !== false; $('sIos').value = state.prefs.iosAuto || 'muted';
+  $('sDiveFull').checked = state.prefs.diveFull !== false; $('sIos').value = state.prefs.iosMode || 'tap';
   $('sVol').value = state.prefs.vol; $('sSfx').checked = !!state.prefs.sfx; $('sDive').checked = !!state.prefs.dive; $('sCC').value = state.prefs.cc;
   $('sLens').value = state.prefs.lens; $('sPar').checked = state.prefs.parallax; $('sLabel').value = state.prefs.labels; $('sDensity').value = String(state.prefs.density);
   renderGenres();
@@ -2499,7 +2503,7 @@ function initEvents() {
   $('sRotVol').oninput = e => { state.prefs.rotVol = +e.target.value; savePrefs(); };
   $('sDive').onchange = e => { state.prefs.dive = e.target.checked; savePrefs(); };
   $('sDiveFull').onchange = e => { state.prefs.diveFull = e.target.checked; savePrefs(); };
-  $('sIos').onchange = e => { state.prefs.iosAuto = e.target.value; savePrefs(); };
+  $('sIos').onchange = e => { state.prefs.iosMode = e.target.value; savePrefs(); };
   $('thExit').onclick = () => exitTheater();
   $('thNext').onclick = () => step(1);
   $('thClose').onclick = () => closePlayer();
@@ -2570,7 +2574,7 @@ function initEvents() {
 // =============================================================================
 function boot() {
   const lines = [
-    '<span class="c">MY NERVE TUBE NET</span> // GHOST ARCHIVE TUNER  v5.8',
+    '<span class="c">MY NERVE TUBE NET</span> // GHOST ARCHIVE TUNER  v5.9',
     '> MAGI SYSTEM: MELCHIOR·1 / BALTHASAR·2 / CASPER·3 ... ONLINE',
     '> initializing cyberbrain interface ........ OK',
     `> mounting ${state.channels.length} hubs / ${state.videos.length} memory nodes ... OK`,
