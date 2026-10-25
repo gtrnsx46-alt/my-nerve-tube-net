@@ -302,6 +302,9 @@ select.fsel{font-family:var(--mono);font-size:10px;background:#020a12;border:1px
 .modal{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;padding:calc(12px + var(--sat)) 12px calc(12px + var(--sab));background:rgba(0,4,8,.88);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
 .modal.show{display:flex}
 /* ===== memory dive overlay ===== */
+#pHint{position:absolute;z-index:2;left:50%;top:10px;transform:translateX(-50%);display:none;pointer-events:none;padding:7px 12px;background:rgba(1,6,12,.88);border:1px solid var(--c2);color:var(--c2);font-family:var(--mono);font-size:11px;white-space:nowrap;max-width:94%;overflow:hidden;text-overflow:ellipsis}
+#pHint.show{display:block;animation:blink 1.6s infinite}
+.card.sel{border-color:#fff;box-shadow:0 0 0 1px #fff,0 0 24px color-mix(in srgb,var(--ca) 60%,transparent)}
 #dive{position:fixed;inset:0;width:100%;height:100%;z-index:80;display:none;pointer-events:auto;opacity:1;transition:opacity .38s ease}
 #dive.on{display:block}
 #dive.out{opacity:0;pointer-events:none}
@@ -571,6 +574,7 @@ textarea.inp{resize:vertical;min-height:190px;line-height:1.6;white-space:pre;ov
     </div>
     <div class="pf-box" id="pBox">
       <div id="pMount"></div>
+      <div id="pHint">▶ 字幕なしで再生するため、動画の再生ボタンを押してください</div>
       <div class="ovl" id="pWarn">
         <div class="box">
           <h3>⚠ ERROR 153 // REFERRER MISSING</h3>
@@ -726,6 +730,7 @@ textarea.inp{resize:vertical;min-height:190px;line-height:1.6;white-space:pre;ov
       <p>スマホ/タブレット：指を置いた場所の周りが拡大し、ノードが押し退けられます。1本指ドラッグで回転、2本指ピンチで拡大縮小。TILTを有効にすると端末の傾きで球体が動きます。</p>
       <p>タブ左の「動画 / ＋Shorts / Shorts」で、全タブ共通のShorts表示を切り替えます（初期は動画のみ）。「最新」タブの期間とNEWバッジの基準は ⚙設定 →「LATEST」で変更できます。</p>
       <p>ジャンルは ⚙設定 →「GENRES」で自由に作成・名前変更・色変更でき、「自動でジャンル分け」で推定もできます。左の一覧（スマホは上部）にジャンルごとのセクターが並びます。</p>
+      <p>ノード（MATRIXではカード）をタップすると選択され、右（スマホは下）の情報欄が開きます。情報欄の「▶ 再生」を押すとダイブ演出つきで再生します。選択中のノードやカードをもう一度タップすると、演出なしですぐ再生します。</p>
       <p>チャンネルを選ぶと上部に「全動画を取得」が出ます（APIキーが必要）。取得後は「全動画」タブとMATRIX表示で、月ごとに全件をスクロールして見られます。</p>
       <p>MATRIX のカード下の <b style="color:#ff8c1a">M B C</b> は MAGI の3人格の判定です。MELCHIOR＝再生数の統計、BALTHASAR＝未視聴で見やすい尺か、CASPER＝新着・ストック・その日の気分。3つ揃うと「全会一致」。</p>
       <p>iPhone：Safariの共有ボタン →「ホーム画面に追加」でアプリのように全画面で使えます。</p>
@@ -1214,14 +1219,37 @@ function dive(v, from, onMid) {
 }
 
 // ===== captions control (YouTube has no official "force off" parameter) =====
-let ccGuard = 0;
-function applyCaptions(p, force) {
-  if (!p || state.prefs.cc === 'yt') return;
-  if (!force && ccGuard > 6) return; ccGuard++;
+// Root cause (verified in a real browser): when the embedded player starts playing without the
+// user's own gesture reaching it (iPhone, or a delayed start), YouTube force-enables auto-generated
+// captions, and unloadModule()/setOption('track', {}) cannot remove them afterwards.
+// Fix: create the player synchronously inside the tap, and if captions were forced anyway,
+// re-mount the same video at the same position with autoplay:0 so the user's tap on YouTube's
+// own play button starts it — playback started that way has no forced captions.
+let ccRearmed = false;
+function captionTrack(p) { try { const t = p.getOption('captions', 'track'); return t && t.languageCode ? t : null; } catch (e) { return null; } }
+function captionsOn(p) {
   try {
-    if (state.prefs.cc === 'off') { p.unloadModule('captions'); p.unloadModule('cc'); }
-    else { p.loadModule('captions'); p.setOption('captions', 'track', { languageCode: 'ja' }); }
+    p.loadModule('captions');
+    setTimeout(() => { try { const tl = p.getOption('captions', 'tracklist') || []; const t = tl.find(x => x.languageCode === 'ja') || tl[0]; if (t) p.setOption('captions', 'track', t); } catch (e) {} }, 700);
   } catch (e) {}
+}
+function enforceCaptions(p, id) {
+  if (!p || state.playing !== id) return;
+  if (state.prefs.cc === 'on' && !captionTrack(p)) { captionsOn(p); return; }
+  if (state.prefs.cc !== 'off' || ccRearmed || !captionTrack(p)) return;
+  ccRearmed = true;
+  const t = Math.floor((p.getCurrentTime && p.getCurrentTime()) || 0);
+  syslog('CAPTIONS FORCED BY PLAYER >> re-arming without autoplay', 'wr');
+  mountYT(id, resetMount(), Object.assign(basePv(id, t), { autoplay: 0 }));
+  $('pHint').classList.add('show');
+}
+function setCaptionsLive(p) {          // user toggled the 字幕 button while a video is open
+  if (!p) return;
+  if (state.prefs.cc === 'on') captionsOn(p);
+  else if (state.prefs.cc === 'off') {
+    try { p.unloadModule('captions'); p.setOption('captions', 'track', {}); } catch (e) {}
+    setTimeout(() => { if (captionTrack(p)) { ccRearmed = false; enforceCaptions(p, state.playing); } }, 900);
+  }
 }
 function updateCCBtn() { const b = $('pCC'); if (!b) return; b.textContent = '字幕: ' + ({ off: 'OFF', on: 'ON', yt: 'AUTO' }[state.prefs.cc]); b.classList.toggle('ok', state.prefs.cc === 'on'); }
 
@@ -1747,7 +1775,7 @@ async function runMagi() {
   $('mgRes').textContent = best.n === 3 ? '可 決' : best.n === 2 ? '可 決（2:1）' : '保 留'; $('mgRes').className = 'mg-res ' + (best.n >= 2 ? 'yes' : 'no');
   $('mgPhase').textContent = best.n === 3 ? 'UNANIMOUS — 全会一致' : best.n === 2 ? 'MAJORITY — 多数決' : 'NO CONSENSUS';
   log(best.n >= 2 ? 'RESOLUTION PASSED' : 'NO CONSENSUS — BEST CANDIDATE PRESENTED');
-  $('mgPlay').disabled = false; $('mgPlay').onclick = () => { $('magiModal').classList.remove('show'); inspect(v, true); openPlayer(v.id); };
+  $('mgPlay').disabled = false; $('mgPlay').onclick = () => { $('magiModal').classList.remove('show'); inspect(v, true); openPlayer(v.id, { dive: true }); };
 }
 
 function currentList() {
@@ -1809,6 +1837,8 @@ function inspect(v, focus) {
   $('insPlay').textContent = canResume(v.id) ? `▶ 続きから ${secToDur(p.t)}` : '▶ 再生';
   $('insYT').href = `https://www.youtube.com/watch?v=${v.id}`;
   updateBtns();
+  document.querySelectorAll('#mgrid .card.sel').forEach(el => el.classList.remove('sel'));
+  const ce = document.querySelector(`#mgrid .card[data-v="${v.id}"]`); if (ce) ce.classList.add('sel');
   if (focus) { focusNode(net.vids.find(x => x.id === v.id)); syslog(`LOCK >> ${v.id}`); }
 }
 function clearInspect() { $('insPrevN').style.display = $('insNextN').style.display = 'none'; state.inspected = null; setAccent(); $('insEmpty').classList.remove('hide'); $('insBody').classList.remove('show'); $('inspector').classList.remove('show-m'); net.tZoom = 1; }
@@ -1877,15 +1907,45 @@ function saveProgress() {
 function openPlayer(id, opts = {}) {
   const v = vidById(id); if (!v) return;
   const open = $('playerModal').classList.contains('show');
-  if (open || diving || opts.noDive || !state.prefs.dive || matchMedia('(prefers-reduced-motion: reduce)').matches) return openPlayerCore(id, opts);
+  if (open || diving || !opts.dive || !state.prefs.dive || matchMedia('(prefers-reduced-motion: reduce)').matches) return openPlayerCore(id, opts);
   const from = originRect(id);
   SFX.dive(); document.body.classList.add('diving');
   openPlayerCore(id, opts);                       // start loading the player right away (keeps the user gesture for autoplay)
   dive(v, from, () => document.body.classList.remove('diving'));
 }
+function basePv(id, start) {
+  const pv = { autoplay: 1, rel: 0, playsinline: 1, start: start || 0, hl: 'ja', cc_load_policy: state.prefs.cc === 'on' ? 1 : 0 };
+  if (state.prefs.cc === 'on') pv.cc_lang_pref = 'ja';
+  if (/^https?:$/.test(location.protocol)) pv.origin = location.origin;
+  return pv;
+}
+function mountYT(id, mount, pv) {
+  usingAPI = true;
+  yt = new YT.Player(mount, {
+    host: 'https://www.youtube-nocookie.com', videoId: id, playerVars: pv, width: '100%', height: '100%',
+    events: {
+      onReady: e => { try { e.target.getIframe().setAttribute('referrerpolicy', 'strict-origin-when-cross-origin'); } catch (er) {} },
+      onApiChange: e => setTimeout(() => enforceCaptions(e.target, id), 300),
+      onStateChange: e => {
+        if (e.data === 1) {
+          clearInterval(ytTimer); ytTimer = setInterval(saveProgress, 4000);
+          $('pHint').classList.remove('show');
+          setTimeout(() => enforceCaptions(e.target, id), 700); setTimeout(() => enforceCaptions(e.target, id), 2500);
+        }
+        if (e.data === 2) saveProgress();
+        if (e.data === 0) { saveProgress(); setWatched(id, true); refreshAfterChange(); if (state.prefs.autoNext) step(1, true); }
+      },
+      onError: e => {
+        const m = { 2: '動画IDが不正です。', 5: 'このブラウザで再生できない形式です。', 100: '動画が削除されたか非公開です。', 101: 'この動画は投稿者によって埋め込み再生が許可されていません。', 150: 'この動画は投稿者によって埋め込み再生が許可されていません。', 153: '埋め込み元(Referer)が送られていません。Webサーバー経由で開いてください。' }[e.data] || `再生エラー (${e.data})`;
+        $('pErrT').textContent = `⚠ PLAYBACK ERROR ${e.data}`; $('pErrM').textContent = m; $('pErr').classList.add('show');
+        syslog(`ERR ${e.data} >> ${id}`, 'wr');
+      }
+    }
+  });
+}
 async function openPlayerCore(id, opts = {}) {
   const v = vidById(id); if (!v) return;
-  state.playing = id; ccGuard = 0; updateCCBtn(); SFX.motion(0);
+  state.playing = id; ccRearmed = false; $('pHint').classList.remove('show'); updateCCBtn(); SFX.motion(0);
   if (!opts.keepQueue) state.queue = currentList().map(x => x.id);
   if (!state.queue.includes(id)) state.queue.unshift(id);
   state.history = [{ id, at: Date.now() }, ...state.history.filter(h => h.id !== id)].slice(0, 300);
@@ -1906,30 +1966,11 @@ async function openPlayerCore(id, opts = {}) {
   const mount = resetMount();
   if (IS_FILE && !opts.force) { $('pWarn').classList.add('show'); return; }
   $('pWarn').classList.remove('show');
-  const ok = await loadYTApi();
+  const ok = (window.YT && YT.Player) ? true : await loadYTApi();   // synchronous when preloaded → keeps the tap's user activation
   if (state.playing !== id) return;
-  const pv = { autoplay: 1, rel: 0, playsinline: 1, start, hl: 'ja', cc_load_policy: state.prefs.cc === 'on' ? 1 : 0 };
-  if (state.prefs.cc === 'on') pv.cc_lang_pref = 'ja';
-  if (/^https?:$/.test(location.protocol)) pv.origin = location.origin;
+  const pv = basePv(id, start);
   if (ok) {
-    usingAPI = true;
-    yt = new YT.Player(mount, {
-      host: 'https://www.youtube-nocookie.com', videoId: id, playerVars: pv, width: '100%', height: '100%',
-      events: {
-        onReady: e => { try { e.target.getIframe().setAttribute('referrerpolicy', 'strict-origin-when-cross-origin'); } catch (er) {} applyCaptions(e.target); },
-        onApiChange: e => { if (state.prefs.cc === 'off') applyCaptions(e.target); },
-        onStateChange: e => {
-          if (e.data === 1) { clearInterval(ytTimer); ytTimer = setInterval(saveProgress, 4000); if (ccGuard < 3) { applyCaptions(e.target); setTimeout(() => applyCaptions(e.target), 1200); } }
-          if (e.data === 2) saveProgress();
-          if (e.data === 0) { saveProgress(); setWatched(id, true); refreshAfterChange(); if (state.prefs.autoNext) step(1, true); }
-        },
-        onError: e => {
-          const m = { 2: '動画IDが不正です。', 5: 'このブラウザで再生できない形式です。', 100: '動画が削除されたか非公開です。', 101: 'この動画は投稿者によって埋め込み再生が許可されていません。', 150: 'この動画は投稿者によって埋め込み再生が許可されていません。', 153: '埋め込み元(Referer)が送られていません。Webサーバー経由で開いてください。' }[e.data] || `再生エラー (${e.data})`;
-          $('pErrT').textContent = `⚠ PLAYBACK ERROR ${e.data}`; $('pErrM').textContent = m; $('pErr').classList.add('show');
-          syslog(`ERR ${e.data} >> ${id}`, 'wr');
-        }
-      }
-    });
+    mountYT(id, mount, pv);
   } else {
     usingAPI = false; // fallback: plain iframe
     const ifr = document.createElement('iframe');
@@ -2305,9 +2346,9 @@ function initEvents() {
   $('helpBtn').onclick = () => $('helpModal').classList.add('show');
   $('helpClose').onclick = () => $('helpModal').classList.remove('show');
 
-  $('insPlay').onclick = () => state.inspected && openPlayer(state.inspected);
-  $('insThumbBox').onclick = () => state.inspected && openPlayer(state.inspected);
-  $('insTitle').onclick = () => state.inspected && openPlayer(state.inspected);
+  $('insPlay').onclick = () => state.inspected && openPlayer(state.inspected, { dive: true });
+  $('insThumbBox').onclick = () => state.inspected && openPlayer(state.inspected, { dive: true });
+  $('insTitle').onclick = () => state.inspected && openPlayer(state.inspected, { dive: true });
   $('insSave').onclick = () => state.inspected && toggleSave(state.inspected);
   $('insWatch').onclick = () => state.inspected && toggleWatched(state.inspected);
   $('insShare').onclick = () => state.inspected && share(state.inspected);
@@ -2316,7 +2357,7 @@ function initEvents() {
     const mg = e.target.closest('[data-magi]');
     if (mg) { if (mg.dataset.magi === 'run') runMagi(); else { state.magiOnly = !state.magiOnly; renderStage(); } return; }
     const st = e.target.closest('.st'); if (st) { e.stopPropagation(); toggleSave(st.dataset.s); return; }
-    const card = e.target.closest('.card'); if (card) { const v = vidById(card.dataset.v); inspect(v, false); openPlayer(v.id); }
+    const card = e.target.closest('.card'); if (card) { const v = vidById(card.dataset.v); if (state.inspected === v.id && card.classList.contains('sel')) openPlayer(v.id); else { inspect(v, false); SFX.lock(); } }
   });
   if (matchMedia('(hover: hover)').matches) $('matrix').addEventListener('mouseover', e => {
     const card = e.target.closest('.card'); if (!card || card.contains(e.relatedTarget)) return;
@@ -2335,7 +2376,7 @@ function initEvents() {
   $('pClose').onclick = closePlayer;
   $('pSave').onclick = () => state.playing && toggleSave(state.playing);
   $('pPrev').onclick = () => step(-1); $('pNext').onclick = () => step(1); $('pErrNext').onclick = () => step(1);
-  $('pCC').onclick = () => { const o = ['off', 'on', 'yt']; state.prefs.cc = o[(o.indexOf(state.prefs.cc) + 1) % 3]; savePrefs(); updateCCBtn(); if (yt) applyCaptions(yt, true); toast({ off: '字幕：OFF', on: '字幕：ON（日本語）', yt: '字幕：YouTubeの設定に従う' }[state.prefs.cc]); };
+  $('pCC').onclick = () => { const o = ['off', 'on', 'yt']; state.prefs.cc = o[(o.indexOf(state.prefs.cc) + 1) % 3]; savePrefs(); updateCCBtn(); if (yt) setCaptionsLive(yt); toast({ off: '字幕：OFF', on: '字幕：ON（日本語）', yt: '字幕：YouTubeの設定に従う' }[state.prefs.cc]); };
   $('sfxBtn').onclick = () => { state.prefs.sfx = !state.prefs.sfx; savePrefs(); applyPrefs(); if (state.prefs.sfx) { sfxInit(); SFX.ui(); } else SFX.motion(0); };
   $('pAuto').onclick = () => { state.prefs.autoNext = !state.prefs.autoNext; savePrefs(); applyPrefs(); };
   $('pShare').onclick = () => state.playing && share(state.playing);
@@ -2357,7 +2398,7 @@ function initEvents() {
   $('sRot').onchange = e => { state.prefs.rot = e.target.value; savePrefs(); SFX.motion(0); };
   $('sRotVol').oninput = e => { state.prefs.rotVol = +e.target.value; savePrefs(); };
   $('sDive').onchange = e => { state.prefs.dive = e.target.checked; savePrefs(); };
-  $('sCC').onchange = e => { state.prefs.cc = e.target.value; savePrefs(); updateCCBtn(); if (yt) applyCaptions(yt, true); };
+  $('sCC').onchange = e => { state.prefs.cc = e.target.value; savePrefs(); updateCCBtn(); if (yt) setCaptionsLive(yt); };
   $('sDensity').onchange = e => { state.prefs.density = +e.target.value; savePrefs(); state.page = 1; renderStage(); };
   $('nAdd').onclick = async () => {
     try {
@@ -2398,7 +2439,7 @@ function initEvents() {
     else if (e.key === '?') $('helpModal').classList.add('show');
     else if (e.key === 'ArrowRight') $('nextBtn').click();
     else if (e.key === 'ArrowLeft') $('prevBtn').click();
-    else if (e.key === ' ' && state.inspected) { e.preventDefault(); openPlayer(state.inspected); }
+    else if (e.key === ' ' && state.inspected) { e.preventDefault(); openPlayer(state.inspected, { dive: true }); }
     else if (k === 's' && state.inspected) toggleSave(state.inspected);
     else if (k === 'w' && state.inspected) toggleWatched(state.inspected);
     else if (k === 'g') setMode(state.mode === 'nerve' ? 'grid' : 'nerve');
@@ -2420,7 +2461,7 @@ function initEvents() {
 // =============================================================================
 function boot() {
   const lines = [
-    '<span class="c">MY NERVE TUBE NET</span> // GHOST ARCHIVE TUNER  v5.5',
+    '<span class="c">MY NERVE TUBE NET</span> // GHOST ARCHIVE TUNER  v5.6',
     '> MAGI SYSTEM: MELCHIOR·1 / BALTHASAR·2 / CASPER·3 ... ONLINE',
     '> initializing cyberbrain interface ........ OK',
     `> mounting ${state.channels.length} hubs / ${state.videos.length} memory nodes ... OK`,
@@ -2448,6 +2489,7 @@ window.addEventListener('DOMContentLoaded', () => {
   const m = location.hash.match(/^#v=([\w-]{11})/);
   if (m && vidById(m[1])) setTimeout(() => { inspect(vidById(m[1]), true); openPlayer(m[1]); }, 900);
   // auto sync when an API key exists and the last sync is older than 3h
+  if (/^https?:$/.test(location.protocol)) setTimeout(loadYTApi, 1200);
   if (state.apiKey && state.channels.length && Date.now() - store.get('aether_lastsync_v1', 0) > 3 * 3600e3) setTimeout(() => sync(true), 1500);
   if (!state.channels.length) setTimeout(openSetup, 1100);
   // PWA offline shell (only when served over http(s) as a top-level page)
