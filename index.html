@@ -1166,6 +1166,9 @@ const SFX = {
     for (let k = 0; k < 9; k++) tone('sine', 1800 + Math.random() * 2400, 1800 + Math.random() * 2400, 0.03, 0.02, { at: 0.15 + k * 0.1, send: 0.6 });
     noiseHit(0.5, 0.09, 6000, 300, { at: 1.15, type: 'lowpass', q: 0.5 });
   },
+  depthIn() { if (!sfx.ctx || !state.prefs.sfx) return; tone('sine', 520, 110, 0.55, 0.07, { send: 0.6 }); tone('triangle', 1600, 400, 0.3, 0.025, { at: 0.05, send: 0.5 }); noiseHit(0.45, 0.04, 4000, 300, { send: 0.4 }); tone('sine', 90, 50, 0.6, 0.08, { at: 0.5 }); },
+  depthOut() { if (!sfx.ctx || !state.prefs.sfx) return; tone('sine', 140, 620, 0.5, 0.06, { send: 0.6 }); noiseHit(0.4, 0.035, 300, 5000, { send: 0.4 }); tone('triangle', 900, 1800, 0.18, 0.02, { at: 0.42, send: 0.5 }); },
+  surface() { if (!sfx.ctx || !state.prefs.sfx) return; tone('sawtooth', 1200, 90, 0.8, 0.035, { lp: 4000, lp2: 300, send: 0.5 }); noiseHit(0.7, 0.04, 6000, 200, { send: 0.4 }); },
   motion(m) {               // sound while the sphere moves — mode: 'chirp' (default) | 'air' | 'off'
     if (!sfx.wh) return; const c = sfx.ctx, on = state.prefs.sfx && !state.playing && !document.hidden, mode = state.prefs.rot || 'chirp';
     const air = on && mode === 'air' ? Math.min(0.022, m * 0.3) * (0.4 + state.prefs.rotVol) : 0;   // soft, low "air"
@@ -1274,6 +1277,10 @@ function enforceCaptions(p, id) {
   if (!p || state.playing !== id) return;
   if (state.prefs.cc === 'on' && !captionTrack(p)) { captionsOn(p); return; }
   if (state.prefs.cc !== 'off' || ccRearmed || !captionTrack(p)) return;
+  // If this player was NOT autoplaying, playback was started by the user's own tap inside the YouTube frame.
+  // Re-mounting then would throw the user back to the start screen (the "press ▶ twice" bug on iPhone).
+  // Captions in that case come from YouTube/iOS settings, so try to switch them off in place instead.
+  if (!ytPv || ytPv.autoplay !== 1 || ytPv.mute === 1) { try { p.unloadModule('captions'); p.setOption('captions', 'track', {}); } catch (e) {} ccRearmed = true; return; }
   ccRearmed = true;
   const t = Math.floor((p.getCurrentTime && p.getCurrentTime()) || 0);
   syslog('CAPTIONS FORCED BY PLAYER >> re-arming without autoplay', 'wr');
@@ -1386,8 +1393,10 @@ function frame() {
   net.dust.forEach(d => { const tw = state.prefs.fx ? (Math.sin(T * 0.04 + d.tw) + 1) / 2 : 0.5; const al = (0.15 + Math.max(0, (d.p.z + 1.5) / 3) * 0.6) * (0.5 + tw * 0.5); ctx.fillStyle = d.tw > 5.4 ? `rgba(0,255,163,${al})` : `rgba(160,240,255,${al})`; const s = 1.2 * d.p.k; ctx.fillRect(d.p.x - s / 2, d.p.y - s / 2, s, s); });
 
   // nodes: project + lens/spring
+  stepDepth(performance.now());               // may rebuild the topology → must run before collecting nodes
   const nodes = [...net.hubs, ...net.vids];
-  nodes.forEach(n => settle(n, project(n.x, n.y, n.z), L));
+  const XS = net.xf.s;
+  nodes.forEach(n => settle(n, n === net.xf.keep ? project(n.x, n.y, n.z) : project(n.x * XS, n.y * XS, n.z * XS), L));
   net.vids.forEach(n => n.g = cardGeom(n));
   if (sfx.ctx) {
     let mv = Math.abs(net.vYaw) * 6 + Math.abs(net.vPitch) * 6 + (net.drag && net.drag.moved ? 0.04 : 0);
@@ -1397,7 +1406,7 @@ function frame() {
   if (IS_TOUCH || isMobile()) separate();
   const q = state.q.trim();
   const dim = n => (q && n.type === 'vid' && !n.match) ? 0.13 : 1;
-  const dA = z => 0.3 + clamp((z + 1.2) / 2.4, 0, 1) * 0.7;
+  const dA = z => (0.3 + clamp((z + 1.2) / 2.4, 0, 1) * 0.7) * net.xf.a;
 
   // wired cables from ceiling (World Tree)
   net.hubs.forEach((hb, i) => {
@@ -1435,7 +1444,7 @@ function frame() {
 
   // nodes (depth sorted; lens-magnified nodes come to the front)
   net.order = nodes.sort((a, b) => (a.p.z + a.lens * 2) - (b.p.z + b.lens * 2));
-  net.order.forEach(n => n.type === 'hub' ? drawHub(n, dA(n.p.z)) : drawVid(n, dA(n.p.z) * dim(n)));
+  net.order.forEach(n => n.type === 'hub' ? drawHub(n, n === net.xf.keep ? 1 : dA(n.p.z)) : drawVid(n, dA(n.p.z) * dim(n)));
   drawLabels(dim);
 
   const sel = state.inspected && net.vids.find(n => n.id === state.inspected);
@@ -1447,6 +1456,7 @@ function frame() {
     ctx.strokeStyle = '#22e6ff'; ctx.lineWidth = 1; ctx.setLineDash([3, 6]);
     ctx.beginPath(); ctx.arc(net.ptr.x, net.ptr.y, L.R * 0.55, T * 0.02, T * 0.02 + Math.PI * 2); ctx.stroke(); ctx.restore();
   }
+  drawDepthFx(T);
   net.ripples = net.ripples.filter(r => r.a > 0.01);
   net.ripples.forEach(r => { r.r += 9; r.a *= 0.95; ctx.strokeStyle = `rgba(34,230,255,${r.a})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(r.x, r.y, r.r, 0, Math.PI * 2); ctx.stroke(); });
 }
@@ -1584,7 +1594,7 @@ function showTip(n, x, y) {
 }
 function setPtr(e) { net.ptr.x = e.clientX; net.ptr.y = e.clientY; net.ptr.type = e.pointerType || 'mouse'; net.ptr.active = true; }
 canvas.addEventListener('pointerdown', e => {
-  if (state.mode !== 'nerve') return;
+  if (state.mode !== 'nerve' || net.depth) return;
   net.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
   setPtr(e);
@@ -1623,7 +1633,7 @@ function endPointer(e) {
   if (!d || d.moved || e.type === 'pointercancel') return;
   const n = (e.pointerType !== 'mouse' ? d.node : null) || pick(e.clientX, e.clientY, e.pointerType !== 'mouse') || d.node;
   if (!n) { kick(e.clientX, e.clientY, 9); SFX.ping(); return; }
-  if (n.type === 'hub') selectSector(state.sel === n.channelId ? 'ALL' : n.channelId);
+  if (n.type === 'hub') goSector(state.sel === n.channelId ? 'ALL' : n.channelId);
   else if (state.inspected === n.id) openPlayer(n.id);
   else { inspect(n.video, true); vibrate(12); SFX.lock(); }
 }
@@ -1667,7 +1677,7 @@ function renderRail() {
       <span class="bar"></span><span style="min-width:0"><div class="n">${esc(it.label)}</div><div class="h">${esc(it.sub)}</div></span>
       <span class="c">${it.nw ? `<i>+${it.nw}</i>` : ''}${String(it.n).padStart(2, '0')}</span></button>`).join('');
   $('hubCount').textContent = String(state.channels.length).padStart(2, '0');
-  $('hubList').querySelectorAll('.hub').forEach(b => b.onclick = () => selectSector(b.dataset.k));
+  $('hubList').querySelectorAll('.hub').forEach(b => b.onclick = () => goSector(b.dataset.k));
 }
 function renderTabs() {
   const sm = state.prefs.shorts || 'exclude';
@@ -1868,6 +1878,72 @@ function renderStage() {
   $('prevBtn').disabled = state.page <= 1; $('nextBtn').disabled = state.page >= state.totalPages;
 }
 function renderAll() { setAccent(); renderRail(); renderTabs(); resize(); renderStage(); }
+// ===== DEPTH transitions (enter a channel hub / return to the whole net) =====
+net.xf = { s: 1, a: 1, keep: null };          // position scale & alpha applied to nodes during transitions
+net.depth = null;                               // {kind, phase, t0, dur, label, color, x, y}
+net.hexRings = [];
+const easeOutBack = t => { const c1 = 1.5, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
+const easeInCubic = t => t * t * t;
+function depthLevel(key) { return key === 'ALL' ? 0 : key.startsWith('CAT:') ? 1 : 2; }
+function goSector(key) {
+  if (key === state.sel) return;
+  if (state.mode !== 'nerve' || !state.prefs.fx || net.depth || document.hidden) { selectSector(key); return; }
+  const dirIn = depthLevel(key) >= depthLevel(state.sel);
+  const hub = net.hubs.find(h => h.channelId === key) || null;
+  const label = key === 'ALL' ? 'ALL HUBS' : key.startsWith('CAT:') ? key.slice(4) : chOf(key).name;
+  const color = key === 'ALL' ? '#22e6ff' : key.startsWith('CAT:') ? genreOf(key.slice(4)).accent : (chOf(key).accent || '#22e6ff');
+  const at = hub && hub.p ? { x: hub.p.x, y: hub.p.y } : { x: net.cx, y: net.cy };
+  if (dirIn && hub) { focusNode(hub); net.tZoom = 2.3; }
+  else if (!dirIn) net.tZoom = 0.55;
+  net.xf.keep = dirIn ? hub : null;
+  net.depth = { kind: dirIn ? 'in' : 'out', phase: 1, t0: performance.now(), dur: dirIn ? 520 : 480, label, color, key, x: at.x, y: at.y,
+    lvlFrom: depthLevel(state.sel), lvlTo: depthLevel(key) };
+  for (let i = 0; i < 5; i++) net.hexRings.push({ x: at.x, y: at.y, r: dirIn ? 10 + i * 6 : Math.max(net.w, net.h) * (0.7 - i * 0.1), a: 0.9, v: dirIn ? 9 + i * 3 : -(14 + i * 4), col: color, rot: i * 0.3, delay: i * 4 });
+  dirIn ? SFX.depthIn() : SFX.depthOut();
+  vibrate(10); markActive();
+}
+function stepDepth(now) {                       // called every frame
+  const d = net.depth; if (!d) return;
+  const t = clamp((now - d.t0) / d.dur, 0, 1);
+  if (d.phase === 1) {                          // leaving the current level
+    if (d.kind === 'in') { net.xf.s = 1 + easeInCubic(t) * 0.6; net.xf.a = 1 - t * 0.92; }
+    else { net.xf.s = 1 - easeInCubic(t) * 0.85; net.xf.a = 1 - t; }
+    if (t >= 1) {
+      selectSector(d.key);                      // rebuild the topology for the new level
+      d.phase = 2; d.t0 = now; d.dur = d.kind === 'in' ? 760 : 700;
+      net.xf.keep = null;
+      if (d.kind === 'in') { net.zoom = 0.62; net.tZoom = 1; } else { net.zoom = 1.6; net.tZoom = 1; }
+      net.ripples.push({ x: net.cx, y: net.cy, r: 8, a: 0.7 });
+    }
+  } else {                                      // unfolding the new level
+    if (d.kind === 'in') net.xf.s = Math.max(0.02, easeOutBack(t));
+    else net.xf.s = 1.9 - 0.9 * (1 - Math.pow(1 - t, 3));
+    net.xf.a = Math.min(1, t * 1.6);
+    if (t >= 1) { net.xf.s = 1; net.xf.a = 1; net.depth = null; }
+  }
+}
+function drawDepthFx(T) {
+  net.hexRings = net.hexRings.filter(r => r.a > 0.02 && r.r > 2);
+  net.hexRings.forEach(r => {
+    if (r.delay > 0) { r.delay--; return; }
+    r.r += r.v; r.v *= r.v > 0 ? 1.06 : 1.02; r.a *= 0.94; r.rot += 0.02;
+    ctx.strokeStyle = hexA(r.col, r.a); ctx.lineWidth = 2;
+    drawHex(r.x, r.y, Math.abs(r.r), r.rot); ctx.stroke();
+  });
+  const d = net.depth; if (!d) return;
+  const t = clamp((performance.now() - d.t0) / d.dur, 0, 1), al = d.phase === 1 ? t : 1 - t;
+  ctx.save(); ctx.textAlign = 'center';
+  ctx.font = '700 11px "JetBrains Mono", monospace'; ctx.fillStyle = hexA(d.color, al * 0.9);
+  const lv = d.phase === 1 ? d.lvlFrom : d.lvlTo;
+  ctx.fillText(`${d.kind === 'in' ? 'DEPTH ▼ DIVING' : 'DEPTH ▲ SURFACING'}  //  LAYER ${String(lv).padStart(2, '0')} → ${String(d.lvlTo).padStart(2, '0')}`, net.cx, net.cy - 18);
+  ctx.font = '700 20px "Noto Sans JP", sans-serif'; ctx.fillStyle = `rgba(234,255,255,${al})`;
+  ctx.fillText(d.label, net.cx, net.cy + 12);
+  // depth gauge
+  ctx.fillStyle = hexA(d.color, al * 0.3); ctx.fillRect(net.cx - 80, net.cy + 26, 160, 3);
+  const prog = d.phase === 1 ? t * 0.5 : 0.5 + t * 0.5;
+  ctx.fillStyle = hexA(d.color, al); ctx.fillRect(net.cx - 80, net.cy + 26, 160 * prog, 3);
+  ctx.restore();
+}
 function selectSector(key) {
   state.sel = key; state.page = 1; net.tYaw = null; net.tZoom = 1;
   syslog(`ROUTE >> ${key === 'ALL' ? 'ALL HUBS' : key.startsWith('CAT:') ? 'SECTOR ' + key.slice(4) : chOf(key).handle}`, 'ok');
@@ -2012,8 +2088,9 @@ function unmuteNow(p) {
     else $('pUnmute').textContent = '🔇 プレーヤー左下のスピーカーを押してください';
   }, 600);
 }
+let ytPv = null;
 function mountYT(id, mount, pv) {
-  usingAPI = true;
+  usingAPI = true; ytPv = pv;
   yt = new YT.Player(mount, {
     host: 'https://www.youtube-nocookie.com', videoId: id, playerVars: pv, width: '100%', height: '100%',
     events: {
@@ -2087,13 +2164,55 @@ function step(dir, auto) {
   if (i < 0 || j < 0 || j >= state.queue.length) { if (auto) toast('キューの最後に到達しました'); return; }
   openPlayer(state.queue[j], { keepQueue: true }); const v = vidById(state.queue[j]); if (v) inspect(v, false);
 }
+function surface(v, to) {
+  return new Promise(res => {
+    const cv = $('dive'), c = cv.getContext('2d'), W = innerWidth, H = innerHeight, dpr = Math.min(devicePixelRatio || 1, ECO() ? 1.25 : 2);
+    cv.width = W * dpr; cv.height = H * dpr; c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    cv.classList.remove('out'); cv.classList.add('on'); diving = true;
+    const img = thumbs[v.id] && thumbs[v.id].complete ? thumbs[v.id] : (() => { const i = new Image(); i.src = `https://i.ytimg.com/vi/${v.id}/mqdefault.jpg`; return i; })();
+    const acc = chOf(v.channelId).accent || '#22e6ff', D = ECO() ? 700 : 900, t0 = performance.now(), M = Math.max(W, H);
+    const tw = Math.max(W, H * 16 / 9) * 1.1, from = { x: W / 2 - tw / 2, y: H / 2 - tw * 9 / 32, w: tw, h: tw * 9 / 16 };
+    const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    (function draw(now) {
+      const t = Math.min(1, (now - t0) / D), e = ease(t), cx = W / 2, cy = H / 2;
+      c.clearRect(0, 0, W, H);
+      c.fillStyle = `rgba(0,3,6,${0.95 * (1 - e)})`; c.fillRect(0, 0, W, H);
+      const r = { x: from.x + (to.x - from.x) * e, y: from.y + (to.y - from.y) * e, w: from.w + (to.w - from.w) * e, h: from.h + (to.h - from.h) * e };
+      if (img.complete && img.naturalWidth) {
+        const sp = 14 * (1 - e) + 1;
+        c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.35 * (1 - e * 0.7);
+        c.drawImage(img, r.x - sp, r.y, r.w, r.h); c.drawImage(img, r.x + sp, r.y, r.w, r.h);
+        c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1 - e * 0.85; c.drawImage(img, r.x, r.y, r.w, r.h); c.globalAlpha = 1;
+      }
+      for (let i = 0; i < 12; i++) {           // gates rushing back toward the centre
+        const z = (i / 12 + t * 1.3) % 1, rr = 14 + Math.pow(1 - z, 2.4) * M, al = Math.sin(z * Math.PI) * (1 - e) * 0.8;
+        c.strokeStyle = i % 3 === 0 ? `rgba(255,140,26,${al})` : hexA(i % 2 ? acc : '#22e6ff', al); c.lineWidth = 1 + (1 - z) * 3;
+        c.beginPath(); for (let k = 0; k < 6; k++) { const a = -Math.PI / 2 + k * Math.PI / 3 - t * 1.4 + i * 0.08; c[k ? 'lineTo' : 'moveTo'](cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); } c.closePath(); c.stroke();
+      }
+      c.strokeStyle = hexA(acc, 1 - e * 0.5); c.lineWidth = 2; const L = 16;
+      [[r.x, r.y, 1, 1], [r.x + r.w, r.y, -1, 1], [r.x, r.y + r.h, 1, -1], [r.x + r.w, r.y + r.h, -1, -1]].forEach(([x, y, sx, sy]) => { c.beginPath(); c.moveTo(x + sx * L, y); c.lineTo(x, y); c.lineTo(x, y + sy * L); c.stroke(); });
+      c.textAlign = 'center'; c.globalAlpha = 1 - e;
+      c.font = '700 12px "JetBrains Mono", monospace'; c.fillStyle = '#22e6ff'; c.fillText('SURFACING  //  RETURN TO NERVE NET', cx, H - 86);
+      c.font = '700 15px "Noto Sans JP", sans-serif'; c.fillStyle = '#eaffff'; c.fillText('記憶領域から浮上中…', cx, H - 62); c.globalAlpha = 1;
+      if (t < 1) requestAnimationFrame(draw);
+      else { cv.classList.add('out'); setTimeout(() => { cv.classList.remove('on', 'out'); c.clearRect(0, 0, W, H); diving = false; }, 380); res(); }
+    })(t0);
+  });
+}
 function closePlayer() {
   if (!$('playerModal').classList.contains('show')) return;
+  const wasId = state.playing;
   saveProgress(); resetMount(); state.playing = null; exitTheater();
   $('playerModal').classList.remove('show');
   if (!IN_FRAME && location.hash.startsWith('#v=')) history.replaceState(null, '', location.pathname + location.search);
   if (state.inspected) inspect(vidById(state.inspected), false); else setAccent();
   refreshAfterChange();
+  const v = vidById(wasId);
+  if (v && state.prefs.dive && state.prefs.fx && !diving && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    SFX.surface(); loop.drawnWhilePaused = false; wake();
+    net.zoom = 1.25; net.tZoom = 1; kick(net.cx, net.cy, 10);
+    requestAnimationFrame(() => surface(v, originRect(v.id)));
+  }
 }
 
 // =============================================================================
@@ -2574,7 +2693,7 @@ function initEvents() {
 // =============================================================================
 function boot() {
   const lines = [
-    '<span class="c">MY NERVE TUBE NET</span> // GHOST ARCHIVE TUNER  v5.9',
+    '<span class="c">MY NERVE TUBE NET</span> // GHOST ARCHIVE TUNER  v6.0',
     '> MAGI SYSTEM: MELCHIOR·1 / BALTHASAR·2 / CASPER·3 ... ONLINE',
     '> initializing cyberbrain interface ........ OK',
     `> mounting ${state.channels.length} hubs / ${state.videos.length} memory nodes ... OK`,
