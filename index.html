@@ -305,6 +305,18 @@ select.fsel{font-family:var(--mono);font-size:10px;background:#020a12;border:1px
 #pHint{position:absolute;z-index:2;left:50%;top:64%;transform:translateX(-50%);display:none;pointer-events:none;padding:7px 12px;background:rgba(1,6,12,.88);border:1px solid var(--c2);color:var(--c2);font-family:var(--mono);font-size:11px;white-space:nowrap;max-width:94%;overflow:hidden;text-overflow:ellipsis}
 #pHint.show{display:block;animation:blink 1.6s infinite}
 .card.sel{border-color:#fff;box-shadow:0 0 0 1px #fff,0 0 24px color-mix(in srgb,var(--ca) 60%,transparent)}
+/* ===== theater / fullscreen after dive ===== */
+body.theater #playerModal{padding:0;background:#000;align-items:stretch;backdrop-filter:none;-webkit-backdrop-filter:none}
+body.theater #playerModal .pf{width:100vw;height:100dvh;max-height:none;border:0;animation:none;background:#000;position:relative}
+body.theater #playerModal .pf::before,body.theater #playerModal .pf::after{display:none}
+body.theater #playerModal .pf-head,body.theater #playerModal .pf-bar{display:none}
+body.theater #playerModal .pf-box,body.theater #playerModal .pf-box.short{position:absolute;inset:0;width:100%;height:100%;max-height:none;aspect-ratio:auto;margin:0}
+#thCtl{display:none}
+body.theater #thCtl{display:flex;flex-direction:column;gap:8px;position:absolute;z-index:6;right:calc(6px + var(--sar));top:50%;transform:translateY(-50%);opacity:.35;transition:opacity .2s}
+body.theater #thCtl:hover,body.theater #thCtl:focus-within{opacity:1}
+#thCtl button{width:42px;height:42px;display:grid;place-items:center;background:rgba(1,6,12,.75);border:1px solid var(--c1-line);color:var(--c1);font-family:var(--mono);font-size:14px}
+#thCtl button:hover{background:var(--c1);color:#001014}
+@media (hover:none){ body.theater #thCtl{opacity:.6} }
 #dive{position:fixed;inset:0;width:100%;height:100%;z-index:80;display:none;pointer-events:auto;opacity:1;transition:opacity .38s ease}
 #dive.on{display:block}
 #dive.out{opacity:0;pointer-events:none}
@@ -575,6 +587,7 @@ textarea.inp{resize:vertical;min-height:190px;line-height:1.6;white-space:pre;ov
     <div class="pf-box" id="pBox">
       <div id="pMount"></div>
       <div id="pHint">▶ 字幕なしで再生するため、動画の再生ボタンを押してください</div>
+      <div id="thCtl"><button id="thExit" title="通常表示に戻す (F)">⤡</button><button id="thNext" title="次の動画 (N)">⏭</button><button id="thClose" title="閉じる (Esc)">✕</button></div>
       <div class="ovl" id="pWarn">
         <div class="box">
           <h3>⚠ ERROR 153 // REFERRER MISSING</h3>
@@ -649,7 +662,8 @@ textarea.inp{resize:vertical;min-height:190px;line-height:1.6;white-space:pre;ov
         <div class="set"><div><div>省電力モード</div><div class="d">ON：描画を30fps・低解像度にし、ぼかし等の重い効果を止めます。しばらく操作がないとさらに減速。再生中・MATRIX表示中は球体の計算を完全停止します（これは常に有効）。AUTO＝スマホ/タブレットでON</div></div><select id="sEco" class="fsel"><option value="auto">AUTO</option><option value="on">ON</option><option value="off">OFF</option></select></div>
         <div class="set"><div><div>効果音</div><div class="d">ノードの移動・選択・ダイブ・MAGI審議などに電子音を付けます（再生中は自動で無音）</div></div><span style="display:flex;gap:10px;align-items:center"><input type="range" id="sVol" min="0" max="1" step="0.05" /><input type="checkbox" id="sSfx" /></span></div>
         <div class="set"><div><div>球体を回すときの音</div><div class="d">電子音：小さな「ピッ」というデータ音がまばらに鳴る ／ 風：低くやわらかい風の音 ／ なし</div></div><span style="display:flex;gap:10px;align-items:center"><input type="range" id="sRotVol" min="0" max="1" step="0.05" title="音量" /><select id="sRot" class="fsel"><option value="chirp">電子音</option><option value="air">風</option><option value="off">なし</option></select></span></div>
-        <div class="set"><div><div>ダイブ演出</div><div class="d">再生時に動画の記憶へ潜り込むトランジションを表示します</div></div><input type="checkbox" id="sDive" /></div>
+        <div class="set"><div><div>ダイブ演出</div><div class="d">情報欄の「▶ 再生」で、動画の記憶へ潜り込むトランジションを表示します</div></div><input type="checkbox" id="sDive" /></div>
+        <div class="set"><div><div>ダイブ後は全画面で再生</div><div class="d">ダイブ演出のあと、動画を全画面で再生します（iPhoneはブラウザの仕様で画面いっぱい表示。横向きにすると大きく見られます）</div></div><input type="checkbox" id="sDiveFull" /></div>
         <div class="set"><div><div>字幕</div><div class="d">OFF：再生開始時に字幕を自動で消します ／ ON：日本語字幕を表示 ／ YouTube任せ：アカウントや端末の設定に従います</div></div><select id="sCC" class="fsel"><option value="off">OFF</option><option value="on">ON</option><option value="yt">YouTube任せ</option></select></div>
         <div class="set"><div><div>パララックス</div><div class="d">マウス位置に合わせて球体がわずかに傾く</div></div><input type="checkbox" id="sPar" /></div>
         <div class="set"><div><div>ラベル表示</div><div class="d">AUTO: 手前と注目ノードだけ / ALL: すべて / OFF: ホバー時のみ</div></div><select id="sLabel" class="fsel"><option value="auto">AUTO</option><option value="all">ALL</option><option value="off">OFF</option></select></div>
@@ -719,6 +733,7 @@ textarea.inp{resize:vertical;min-height:190px;line-height:1.6;white-space:pre;ov
         <span><kbd>Space</kbd></span><span>捕捉中の動画を再生</span>
         <span><kbd>N</kbd> <kbd>P</kbd></span><span>プレイヤーで次/前の動画</span>
         <span><kbd>S</kbd></span><span>ストック切替</span>
+        <span><kbd>F</kbd></span><span>再生中：全画面 ⇔ 通常表示</span>
         <span><kbd>W</kbd></span><span>視聴済み切替</span>
         <span><kbd>G</kbd></span><span>NERVE / MATRIX 切替</span>
         <span><kbd>L</kbd></span><span>ラベル表示切替</span>
@@ -769,7 +784,7 @@ const store = {
   get(k, f) { try { const r = localStorage.getItem(k); return r ? JSON.parse(r) : f; } catch (e) { return f; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { if (!store._warned) { store._warned = true; setTimeout(() => toast('⚠ 端末の保存容量が上限です。一部のデータが保存されていません'), 0); } return false; } }
 };
-const DEFAULT_PREFS = { rot: 'chirp', rotVol: 0.5, cc: 'off', sfx: true, vol: 0.6, dive: true, shorts: 'exclude', latestDays: 30, newDays: 3, newSinceVisit: true, lens: 1, parallax: true, labels: 'auto', density: 1, autoNext: true, autoRot: true, fx: true, eco: 'auto' };
+const DEFAULT_PREFS = { diveFull: true, rot: 'chirp', rotVol: 0.5, cc: 'off', sfx: true, vol: 0.6, dive: true, shorts: 'exclude', latestDays: 30, newDays: 3, newSinceVisit: true, lens: 1, parallax: true, labels: 'auto', density: 1, autoNext: true, autoRot: true, fx: true, eco: 'auto' };
 const state = {
   channels: store.get('aether_channels_v1', []),
   videos: store.get('aether_videos_v1', []),
@@ -1904,12 +1919,34 @@ function saveProgress() {
   store.set('aether_progress_v1', state.progress);
   const left = d - t; $('pResume').textContent = `${secToDur(t)} / ${secToDur(d)}`;
 }
+// ===== theater (fullscreen) playback after a dive =====
+const theater = { fs: false };
+function enterTheater(v) {
+  document.body.classList.add('theater'); theater.fs = false;
+  const el = document.documentElement, req = el.requestFullscreen || el.webkitRequestFullscreen;
+  if (!req) return;                                   // iPhone: no element fullscreen → viewport-filling theater only
+  try {
+    const r = req.call(el, { navigationUI: 'hide' });
+    const done = () => { theater.fs = true; if (!v.isShort && screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {}); };
+    if (r && r.then) r.then(done).catch(() => {}); else setTimeout(() => { if (document.webkitFullscreenElement) done(); }, 300);
+  } catch (e) {}
+}
+function exitTheater() {
+  document.body.classList.remove('theater');
+  const fs = document.fullscreenElement || document.webkitFullscreenElement;
+  theater.fs = false;
+  if (fs) { try { (document.exitFullscreen || document.webkitExitFullscreen).call(document); } catch (e) {} }
+  try { screen.orientation && screen.orientation.unlock && screen.orientation.unlock(); } catch (e) {}
+}
+function toggleTheater() { if (document.body.classList.contains('theater')) exitTheater(); else if (state.playing) enterTheater(vidById(state.playing) || {}); }
+
 function openPlayer(id, opts = {}) {
   const v = vidById(id); if (!v) return;
   const open = $('playerModal').classList.contains('show');
   if (open || diving || !opts.dive || !state.prefs.dive || matchMedia('(prefers-reduced-motion: reduce)').matches) return openPlayerCore(id, opts);
   const from = originRect(id);
   SFX.dive(); document.body.classList.add('diving');
+  if (state.prefs.diveFull !== false) enterTheater(v);   // inside the tap → fullscreen is allowed
   openPlayerCore(id, opts);                       // start loading the player right away (keeps the user gesture for autoplay)
   dive(v, from, () => document.body.classList.remove('diving'));
 }
@@ -1989,7 +2026,7 @@ function step(dir, auto) {
 }
 function closePlayer() {
   if (!$('playerModal').classList.contains('show')) return;
-  saveProgress(); resetMount(); state.playing = null;
+  saveProgress(); resetMount(); state.playing = null; exitTheater();
   $('playerModal').classList.remove('show');
   if (!IN_FRAME && location.hash.startsWith('#v=')) history.replaceState(null, '', location.pathname + location.search);
   if (state.inspected) inspect(vidById(state.inspected), false); else setAccent();
@@ -2259,6 +2296,7 @@ function renderCfg() {
   $('apiState').textContent = on ? 'API v3 LIVE' : 'PRESET+RSS'; $('apiKey').value = state.apiKey; $('linkTxt').textContent = on ? 'API v3 LINK' : 'PRESET LINK';
   $('sLatest').value = String(state.prefs.latestDays); $('sNew').value = String(state.prefs.newDays); $('sNewVisit').checked = !!state.prefs.newSinceVisit;
   $('sRot').value = state.prefs.rot || 'chirp'; $('sRotVol').value = state.prefs.rotVol ?? 0.5;
+  $('sDiveFull').checked = state.prefs.diveFull !== false;
   $('sVol').value = state.prefs.vol; $('sSfx').checked = !!state.prefs.sfx; $('sDive').checked = !!state.prefs.dive; $('sCC').value = state.prefs.cc;
   $('sLens').value = state.prefs.lens; $('sPar').checked = state.prefs.parallax; $('sLabel').value = state.prefs.labels; $('sDensity').value = String(state.prefs.density);
   renderGenres();
@@ -2398,6 +2436,14 @@ function initEvents() {
   $('sRot').onchange = e => { state.prefs.rot = e.target.value; savePrefs(); SFX.motion(0); };
   $('sRotVol').oninput = e => { state.prefs.rotVol = +e.target.value; savePrefs(); };
   $('sDive').onchange = e => { state.prefs.dive = e.target.checked; savePrefs(); };
+  $('sDiveFull').onchange = e => { state.prefs.diveFull = e.target.checked; savePrefs(); };
+  $('thExit').onclick = () => exitTheater();
+  $('thNext').onclick = () => step(1);
+  $('thClose').onclick = () => closePlayer();
+  ['fullscreenchange', 'webkitfullscreenchange'].forEach(ev => document.addEventListener(ev, () => {
+    const fs = document.fullscreenElement || document.webkitFullscreenElement;
+    if (!fs && theater.fs && document.body.classList.contains('theater')) exitTheater();   // user left fullscreen (Esc / gesture)
+  }));
   $('sCC').onchange = e => { state.prefs.cc = e.target.value; savePrefs(); updateCCBtn(); if (yt) setCaptionsLive(yt); };
   $('sDensity').onchange = e => { state.prefs.density = +e.target.value; savePrefs(); state.page = 1; renderStage(); };
   $('nAdd').onclick = async () => {
@@ -2433,7 +2479,7 @@ function initEvents() {
     if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || e.metaKey || e.ctrlKey || e.altKey) return;
     const playing = $('playerModal').classList.contains('show');
     const k = e.key.toLowerCase();
-    if (playing) { if (k === 'n') step(1); else if (k === 'p') step(-1); else if (k === 's') toggleSave(state.playing); return; }
+    if (playing) { if (k === 'n') step(1); else if (k === 'p') step(-1); else if (k === 's') toggleSave(state.playing); else if (k === 'f') toggleTheater(); return; }
     if (anyModal()) return;
     if (e.key === '/') { e.preventDefault(); $('q').focus(); }
     else if (e.key === '?') $('helpModal').classList.add('show');
@@ -2461,7 +2507,7 @@ function initEvents() {
 // =============================================================================
 function boot() {
   const lines = [
-    '<span class="c">MY NERVE TUBE NET</span> // GHOST ARCHIVE TUNER  v5.6',
+    '<span class="c">MY NERVE TUBE NET</span> // GHOST ARCHIVE TUNER  v5.7',
     '> MAGI SYSTEM: MELCHIOR·1 / BALTHASAR·2 / CASPER·3 ... ONLINE',
     '> initializing cyberbrain interface ........ OK',
     `> mounting ${state.channels.length} hubs / ${state.videos.length} memory nodes ... OK`,
