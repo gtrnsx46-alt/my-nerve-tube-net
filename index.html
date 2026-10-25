@@ -113,6 +113,15 @@ main > *{pointer-events:auto;min-width:0}
 #q:focus{border-bottom-color:var(--c1)}
 #qClear{font-family:var(--mono);font-size:10px;color:var(--mute);padding:4px 6px;border:1px solid var(--c1-line)}
 #qClear:hover{color:var(--alert);border-color:var(--alert)}
+#qFold{font-family:var(--mono);font-size:10px;color:var(--c1);padding:4px 7px;border:1px solid var(--c1-line)}
+#qFold:hover{background:var(--c1-dim)}
+body.q-closed #console{display:none}
+#console{animation:qIn .25s cubic-bezier(.16,1,.3,1)}
+@keyframes qIn{from{opacity:0;transform:translateY(-8px)}}
+#qBtn{position:relative}
+#qBtn.active{background:var(--c1);color:#001014;box-shadow:0 0 14px rgba(34,230,255,.5)}
+#qBtn .qb{position:absolute;top:-6px;right:-6px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--c2);color:#001a10;font-family:var(--mono);font-size:9px;font-weight:700;display:none;place-items:center}
+#qBtn.active .qb{display:grid}
 .q-meta{display:flex;justify-content:space-between;margin-top:7px;gap:10px}
 #qHits{color:var(--c2);white-space:nowrap}
 #deckTitle{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -302,6 +311,9 @@ select.fsel{font-family:var(--mono);font-size:10px;background:#020a12;border:1px
 .modal{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;padding:calc(12px + var(--sat)) 12px calc(12px + var(--sab));background:rgba(0,4,8,.88);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
 .modal.show{display:flex}
 /* ===== memory dive overlay ===== */
+#pUnmute{position:absolute;z-index:4;left:50%;top:14px;transform:translateX(-50%);display:none;padding:12px 20px;background:rgba(1,6,12,.92);border:2px solid var(--c1);color:var(--c1);font-family:var(--jp);font-size:14px;font-weight:700;box-shadow:0 0 22px rgba(34,230,255,.5);white-space:nowrap;max-width:94%;overflow:hidden;text-overflow:ellipsis}
+#pUnmute.show{display:block;animation:tIn .3s}
+body.theater #pUnmute{top:calc(14px + var(--sat))}
 #pHint{position:absolute;z-index:2;left:50%;top:64%;transform:translateX(-50%);display:none;pointer-events:none;padding:7px 12px;background:rgba(1,6,12,.88);border:1px solid var(--c2);color:var(--c2);font-family:var(--mono);font-size:11px;white-space:nowrap;max-width:94%;overflow:hidden;text-overflow:ellipsis}
 #pHint.show{display:block;animation:blink 1.6s infinite}
 .card.sel{border-color:#fff;box-shadow:0 0 0 1px #fff,0 0 24px color-mix(in srgb,var(--ca) 60%,transparent)}
@@ -401,7 +413,12 @@ textarea.inp{resize:vertical;min-height:190px;line-height:1.6;white-space:pre;ov
   .logo .t{font-size:14px;letter-spacing:.12em}
   .logo img{width:30px;height:30px}
   .logo .s,.chip{display:none}
-  .logo{flex:1;min-width:0}
+  .logo{flex:1 1 auto;min-width:0;overflow:hidden}
+  .logo > div{min-width:0;overflow:hidden}
+  .chips{gap:6px;flex:none}
+  .ibtn{width:34px;height:34px}
+  .ibtn svg{width:15px;height:15px}
+  .logo .t{font-size:12.5px;letter-spacing:.08em}
   main{grid-template-columns:minmax(0,1fr);grid-template-rows:auto 1fr;padding:8px calc(8px + var(--sar)) 8px calc(8px + var(--sal));gap:8px}
   #rail{padding:6px;grid-row:1}
   #rail .head{display:none}
@@ -474,6 +491,7 @@ textarea.inp{resize:vertical;min-height:190px;line-height:1.6;white-space:pre;ov
       <span class="chip" id="linkChip"><span class="dot"></span><span id="linkTxt">PRESET LINK</span></span>
       <span class="chip" id="nodeChip">NODES 0</span>
       <span class="chip" id="clock">--:--:-- JST</span>
+      <button class="ibtn" id="qBtn" title="キーワード検索 (/)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.2" y2="16.2"/></svg><span class="qb" id="qBadge"></span></button>
       <button class="ibtn" id="helpBtn" title="ヘルプ・ショートカット (?)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></button>
       <button class="ibtn" id="syncBtn" title="最新データ同期"><svg id="syncIco" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></button>
       <button class="ibtn" id="cfgBtn" title="設定"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.2 4.2l2.8 2.8M17 17l2.8 2.8M1 12h4M19 12h4M4.2 19.8 7 17M17 7l2.8-2.8"/></svg></button>
@@ -492,6 +510,7 @@ textarea.inp{resize:vertical;min-height:190px;line-height:1.6;white-space:pre;ov
           <span class="q-tag">DIVE QUERY</span>
           <input id="q" type="search" autocomplete="off" spellcheck="false" enterkeyhint="search" placeholder="キーワードで情報の海から呼び起こす…  [ / ]" />
           <button id="qClear" title="クリア">CLR</button>
+          <button id="qFold" title="検索窓をたたむ (Esc)">▲</button>
         </div>
         <div class="q-meta">
           <span class="lbl" id="deckTitle">ALL HUBS // LATEST</span>
@@ -586,6 +605,7 @@ textarea.inp{resize:vertical;min-height:190px;line-height:1.6;white-space:pre;ov
     </div>
     <div class="pf-box" id="pBox">
       <div id="pMount"></div>
+      <button id="pUnmute">🔊 タップで音声ON</button>
       <div id="pHint">▶ 字幕なしで再生するため、動画の再生ボタンを押してください</div>
       <div id="thCtl"><button id="thExit" title="通常表示に戻す (F)">⤡</button><button id="thNext" title="次の動画 (N)">⏭</button><button id="thClose" title="閉じる (Esc)">✕</button></div>
       <div class="ovl" id="pWarn">
@@ -663,6 +683,7 @@ textarea.inp{resize:vertical;min-height:190px;line-height:1.6;white-space:pre;ov
         <div class="set"><div><div>効果音</div><div class="d">ノードの移動・選択・ダイブ・MAGI審議などに電子音を付けます（再生中は自動で無音）</div></div><span style="display:flex;gap:10px;align-items:center"><input type="range" id="sVol" min="0" max="1" step="0.05" /><input type="checkbox" id="sSfx" /></span></div>
         <div class="set"><div><div>球体を回すときの音</div><div class="d">電子音：小さな「ピッ」というデータ音がまばらに鳴る ／ 風：低くやわらかい風の音 ／ なし</div></div><span style="display:flex;gap:10px;align-items:center"><input type="range" id="sRotVol" min="0" max="1" step="0.05" title="音量" /><select id="sRot" class="fsel"><option value="chirp">電子音</option><option value="air">風</option><option value="off">なし</option></select></span></div>
         <div class="set"><div><div>ダイブ演出</div><div class="d">情報欄の「▶ 再生」で、動画の記憶へ潜り込むトランジションを表示します</div></div><input type="checkbox" id="sDive" /></div>
+        <div class="set"><div><div>iPhone/iPadの自動再生</div><div class="d">無音で自動再生：ダイブ後すぐ再生が始まり、「🔊 タップで音声ON」で音を出します ／ 再生ボタンを押す：音声ありで始めたい場合（毎回 ▶ をタップ）</div></div><select id="sIos" class="fsel"><option value="muted">無音で自動再生</option><option value="tap">再生ボタンを押す</option></select></div>
         <div class="set"><div><div>ダイブ後は全画面で再生</div><div class="d">ダイブ演出のあと、動画を全画面で再生します（iPhoneはブラウザの仕様で画面いっぱい表示。横向きにすると大きく見られます）</div></div><input type="checkbox" id="sDiveFull" /></div>
         <div class="set"><div><div>字幕</div><div class="d">OFF：再生開始時に字幕を自動で消します ／ ON：日本語字幕を表示 ／ YouTube任せ：アカウントや端末の設定に従います</div></div><select id="sCC" class="fsel"><option value="off">OFF</option><option value="on">ON</option><option value="yt">YouTube任せ</option></select></div>
         <div class="set"><div><div>パララックス</div><div class="d">マウス位置に合わせて球体がわずかに傾く</div></div><input type="checkbox" id="sPar" /></div>
@@ -728,7 +749,7 @@ textarea.inp{resize:vertical;min-height:190px;line-height:1.6;white-space:pre;ov
     <div class="pf-head"><span class="pf-tag" style="background:var(--c1)">MANUAL</span><h2 style="font-size:13px;margin:0;flex:1">操作ガイド</h2><button class="btn" id="helpClose">✕</button></div>
     <div class="body">
       <div class="keys">
-        <span><kbd>/</kbd></span><span>検索欄へ</span>
+        <span><kbd>/</kbd></span><span>検索窓を開いて入力（Escでたたむ）</span>
         <span><kbd>← →</kbd></span><span>前/次のクラスター（ページ）</span>
         <span><kbd>Space</kbd></span><span>捕捉中の動画を再生</span>
         <span><kbd>N</kbd> <kbd>P</kbd></span><span>プレイヤーで次/前の動画</span>
@@ -784,7 +805,7 @@ const store = {
   get(k, f) { try { const r = localStorage.getItem(k); return r ? JSON.parse(r) : f; } catch (e) { return f; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { if (!store._warned) { store._warned = true; setTimeout(() => toast('⚠ 端末の保存容量が上限です。一部のデータが保存されていません'), 0); } return false; } }
 };
-const DEFAULT_PREFS = { diveFull: true, rot: 'chirp', rotVol: 0.5, cc: 'off', sfx: true, vol: 0.6, dive: true, shorts: 'exclude', latestDays: 30, newDays: 3, newSinceVisit: true, lens: 1, parallax: true, labels: 'auto', density: 1, autoNext: true, autoRot: true, fx: true, eco: 'auto' };
+const DEFAULT_PREFS = { iosAuto: 'muted', searchOpen: null, diveFull: true, rot: 'chirp', rotVol: 0.5, cc: 'off', sfx: true, vol: 0.6, dive: true, shorts: 'exclude', latestDays: 30, newDays: 3, newSinceVisit: true, lens: 1, parallax: true, labels: 'auto', density: 1, autoNext: true, autoRot: true, fx: true, eco: 'auto' };
 const state = {
   channels: store.get('aether_channels_v1', []),
   videos: store.get('aether_videos_v1', []),
@@ -806,6 +827,7 @@ const savePrefs = () => store.set('aether_prefs_v1', state.prefs);
 const $ = id => document.getElementById(id);
 const isMobile = () => window.innerWidth <= 920;
 const IS_TOUCH = matchMedia('(hover: none)').matches || 'ontouchstart' in window;
+const IS_IOS = /iP(hone|od|ad)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const IN_FRAME = (() => { try { return window.top !== window; } catch (e) { return true; } })();
 const IS_FILE = location.protocol === 'file:';
 
@@ -1255,8 +1277,9 @@ function enforceCaptions(p, id) {
   ccRearmed = true;
   const t = Math.floor((p.getCurrentTime && p.getCurrentTime()) || 0);
   syslog('CAPTIONS FORCED BY PLAYER >> re-arming without autoplay', 'wr');
-  mountYT(id, resetMount(), Object.assign(basePv(id, t), { autoplay: 0 }));
-  $('pHint').classList.add('show');
+  const keepAuto = IS_IOS && state.prefs.iosAuto !== 'tap';
+  mountYT(id, resetMount(), Object.assign(basePv(id, t), keepAuto ? { autoplay: 1, mute: 1 } : { autoplay: 0 }));
+  if (!keepAuto) $('pHint').classList.add('show');
 }
 function setCaptionsLive(p) {          // user toggled the 字幕 button while a video is open
   if (!p) return;
@@ -1660,6 +1683,21 @@ function setShorts(m) {
   toast({ exclude: 'Shortsを除外して表示', include: 'Shortsも含めて表示', only: 'Shortsのみ表示' }[m]);
   syslog(`SHORTS FILTER >> ${m.toUpperCase()}`); renderAll();
 }
+// ===== collapsible search console =====
+function searchOpen() { return state.prefs.searchOpen === null ? !isMobile() : state.prefs.searchOpen; }
+function setSearch(open, focus) {
+  state.prefs.searchOpen = open; savePrefs();
+  document.body.classList.toggle('q-closed', !open);
+  updateQBtn(); SFX.ui();
+  resize(); if (state.mode === 'nerve') { loop.drawnWhilePaused = false; wake(); }
+  if (open && focus) setTimeout(() => $('q').focus(), 30);
+}
+function updateQBtn() {
+  const active = !!state.q.trim();
+  $('qBtn').classList.toggle('active', active && !searchOpen());
+  $('qBadge').textContent = active ? String(currentList().filter(matchQ).length) : '';
+  $('qBtn').title = active ? `検索中：「${state.q.trim()}」 (/)` : 'キーワード検索 (/)';
+}
 function setTab(t) {
   SFX.ui();
   state.tab = t; state.page = 1;
@@ -1811,11 +1849,13 @@ function renderStage() {
     pageItems = list.slice((state.page - 1) * cap, state.page * cap);
     buildNet(pageItems); $('matrix').innerHTML = '';
     $('qHits').textContent = state.q.trim() ? `${list.filter(matchQ).length} RECALLED` : `${list.length} NODES`;
+  if ($('qBtn')) updateQBtn();
   } else {
     state.totalPages = 1; state.page = 1;
     pageItems = list;
     renderMatrix(list);
     $('qHits').textContent = `${list.length} NODES`;
+    if ($('qBtn')) updateQBtn();
     net.vids = []; net.hubs = []; net.links = []; net.pulses = []; net.order = [];
   }
   $('emptyMsg').classList.toggle('show', pageItems.length === 0);
@@ -1954,7 +1994,20 @@ function basePv(id, start) {
   const pv = { autoplay: 1, rel: 0, playsinline: 1, start: start || 0, hl: 'ja', cc_load_policy: state.prefs.cc === 'on' ? 1 : 0 };
   if (state.prefs.cc === 'on') pv.cc_lang_pref = 'ja';
   if (/^https?:$/.test(location.protocol)) pv.origin = location.origin;
+  // iPhone/iPad Safari never allows an embedded video to start WITH sound unless the tap lands inside
+  // the YouTube frame itself. Muted autoplay is allowed, so start muted and offer a one-tap unmute.
+  if (IS_IOS && state.prefs.iosAuto !== 'tap') pv.mute = 1;
   return pv;
+}
+function showUnmute(p) { const b = $('pUnmute'); b.classList.add('show'); b.textContent = '🔊 タップで音声ON'; b.onclick = () => unmuteNow(p); }
+function hideUnmute() { $('pUnmute').classList.remove('show'); }
+function unmuteNow(p) {
+  try { p.unMute(); p.setVolume(100); if (p.getPlayerState() !== 1) p.playVideo(); } catch (e) {}
+  setTimeout(() => {
+    let muted = true; try { muted = p.isMuted(); } catch (e) {}
+    if (!muted) { hideUnmute(); SFX.ui(); }
+    else $('pUnmute').textContent = '🔇 プレーヤー左下のスピーカーを押してください';
+  }, 600);
 }
 function mountYT(id, mount, pv) {
   usingAPI = true;
@@ -1963,9 +2016,15 @@ function mountYT(id, mount, pv) {
     events: {
       onReady: e => { try { e.target.getIframe().setAttribute('referrerpolicy', 'strict-origin-when-cross-origin'); } catch (er) {} },
       onApiChange: e => setTimeout(() => enforceCaptions(e.target, id), 300),
+      onAutoplayBlocked: e => {               // browser refused autoplay with sound → retry muted, offer unmute
+        if (state.prefs.iosAuto === 'tap') return;
+        try { e.target.mute(); e.target.playVideo(); } catch (er) {}
+        showUnmute(e.target);
+      },
       onStateChange: e => {
         if (e.data === 1) {
           clearInterval(ytTimer); ytTimer = setInterval(saveProgress, 4000);
+          try { if (e.target.isMuted()) showUnmute(e.target); else hideUnmute(); } catch (er) {}
           $('pHint').classList.remove('show');
           setTimeout(() => enforceCaptions(e.target, id), 700); setTimeout(() => enforceCaptions(e.target, id), 2500);
         }
@@ -1982,7 +2041,7 @@ function mountYT(id, mount, pv) {
 }
 async function openPlayerCore(id, opts = {}) {
   const v = vidById(id); if (!v) return;
-  state.playing = id; ccRearmed = false; $('pHint').classList.remove('show'); updateCCBtn(); SFX.motion(0);
+  state.playing = id; ccRearmed = false; $('pHint').classList.remove('show'); hideUnmute(); updateCCBtn(); SFX.motion(0);
   if (!opts.keepQueue) state.queue = currentList().map(x => x.id);
   if (!state.queue.includes(id)) state.queue.unshift(id);
   state.history = [{ id, at: Date.now() }, ...state.history.filter(h => h.id !== id)].slice(0, 300);
@@ -2296,7 +2355,7 @@ function renderCfg() {
   $('apiState').textContent = on ? 'API v3 LIVE' : 'PRESET+RSS'; $('apiKey').value = state.apiKey; $('linkTxt').textContent = on ? 'API v3 LINK' : 'PRESET LINK';
   $('sLatest').value = String(state.prefs.latestDays); $('sNew').value = String(state.prefs.newDays); $('sNewVisit').checked = !!state.prefs.newSinceVisit;
   $('sRot').value = state.prefs.rot || 'chirp'; $('sRotVol').value = state.prefs.rotVol ?? 0.5;
-  $('sDiveFull').checked = state.prefs.diveFull !== false;
+  $('sDiveFull').checked = state.prefs.diveFull !== false; $('sIos').value = state.prefs.iosAuto || 'muted';
   $('sVol').value = state.prefs.vol; $('sSfx').checked = !!state.prefs.sfx; $('sDive').checked = !!state.prefs.dive; $('sCC').value = state.prefs.cc;
   $('sLens').value = state.prefs.lens; $('sPar').checked = state.prefs.parallax; $('sLabel').value = state.prefs.labels; $('sDensity').value = String(state.prefs.density);
   renderGenres();
@@ -2364,7 +2423,10 @@ function initEvents() {
     }, 220);
   });
   $('q').addEventListener('keydown', e => { if (e.key === 'Enter') { e.target.blur(); if (state.inspected && state.q.trim()) openPlayer(state.inspected); } });
-  $('qClear').onclick = () => { $('q').value = ''; state.q = ''; renderStage(); };
+  $('qClear').onclick = () => { $('q').value = ''; state.q = ''; renderStage(); updateQBtn(); };
+  $('qBtn').onclick = () => setSearch(!searchOpen(), true);
+  $('qFold').onclick = () => setSearch(false);
+  $('q').addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); $('q').blur(); setSearch(false); } });
   const setMode = m => { state.mode = m; state.page = 1; $('vNerve').classList.toggle('on', m === 'nerve'); $('vGrid').classList.toggle('on', m === 'grid'); showTip(null); renderStage(); };
   $('vNerve').onclick = () => setMode('nerve'); $('vGrid').onclick = () => setMode('grid');
   $('sortSel').onchange = e => { state.sortBy = e.target.value; state.page = 1; renderStage(); };
@@ -2437,6 +2499,7 @@ function initEvents() {
   $('sRotVol').oninput = e => { state.prefs.rotVol = +e.target.value; savePrefs(); };
   $('sDive').onchange = e => { state.prefs.dive = e.target.checked; savePrefs(); };
   $('sDiveFull').onchange = e => { state.prefs.diveFull = e.target.checked; savePrefs(); };
+  $('sIos').onchange = e => { state.prefs.iosAuto = e.target.value; savePrefs(); };
   $('thExit').onclick = () => exitTheater();
   $('thNext').onclick = () => step(1);
   $('thClose').onclick = () => closePlayer();
@@ -2481,7 +2544,7 @@ function initEvents() {
     const k = e.key.toLowerCase();
     if (playing) { if (k === 'n') step(1); else if (k === 'p') step(-1); else if (k === 's') toggleSave(state.playing); else if (k === 'f') toggleTheater(); return; }
     if (anyModal()) return;
-    if (e.key === '/') { e.preventDefault(); $('q').focus(); }
+    if (e.key === '/') { e.preventDefault(); setSearch(true, true); }
     else if (e.key === '?') $('helpModal').classList.add('show');
     else if (e.key === 'ArrowRight') $('nextBtn').click();
     else if (e.key === 'ArrowLeft') $('prevBtn').click();
@@ -2507,7 +2570,7 @@ function initEvents() {
 // =============================================================================
 function boot() {
   const lines = [
-    '<span class="c">MY NERVE TUBE NET</span> // GHOST ARCHIVE TUNER  v5.7',
+    '<span class="c">MY NERVE TUBE NET</span> // GHOST ARCHIVE TUNER  v5.8',
     '> MAGI SYSTEM: MELCHIOR·1 / BALTHASAR·2 / CASPER·3 ... ONLINE',
     '> initializing cyberbrain interface ........ OK',
     `> mounting ${state.channels.length} hubs / ${state.videos.length} memory nodes ... OK`,
@@ -2521,7 +2584,8 @@ function boot() {
 }
 ['gesturestart', 'gesturechange'].forEach(t => document.addEventListener(t, e => e.preventDefault(), { passive: false }));
 window.addEventListener('DOMContentLoaded', () => {
-  syncGenres(); buildDust(); initEvents(); applyPrefs(); renderCfg(); renderAll();
+  document.body.classList.toggle('q-closed', !searchOpen());
+  syncGenres(); buildDust(); initEvents(); applyPrefs(); renderCfg(); renderAll(); updateQBtn();
   syslog('NERVE NET online', 'ok');
   if (IS_FILE) { syslog('file:// — 埋め込み再生にはWeb配信が必要', 'wr'); $('linkChip').classList.add('warn'); }
   boot();
