@@ -122,6 +122,11 @@ main > *{pointer-events:auto;min-width:0}
 .tab .k{font-size:9px;opacity:.6}
 .tab .ct{font-size:9px;padding:1px 5px;background:rgba(255,255,255,.06)}
 .tab:hover{color:var(--txt);border-color:var(--c1)}
+.sseg{display:inline-flex;flex:none;border:1px solid rgba(192,132,252,.55);margin-right:4px;position:sticky;left:0;z-index:3;background:#05030c;box-shadow:8px 0 10px -4px #010409}
+.sseg button{font-family:var(--mono);font-size:10px;padding:6px 9px;color:#c9a4ff;white-space:nowrap;letter-spacing:.04em}
+.sseg button + button{border-left:1px solid rgba(192,132,252,.35)}
+.sseg button.on{background:#c084fc;color:#14051f;font-weight:700}
+.card .tg.sh{bottom:30px;right:8px;background:#c084fc;color:#14051f;font-weight:700;font-size:9px}
 .tab.on{color:#001014;background:var(--c1);border-color:var(--c1);box-shadow:0 0 18px rgba(34,230,255,.45)}
 .tab.on .ct{background:rgba(0,0,0,.18)}
 
@@ -620,6 +625,12 @@ textarea.inp{resize:vertical;min-height:190px;line-height:1.6;white-space:pre;ov
         <div id="gMsg" class="lbl" style="margin-top:8px"></div>
       </div>
       <div class="blk">
+        <span class="lbl"><b>◢</b> LATEST — 最新の基準</span>
+        <div class="set"><div><div>「最新」タブの期間</div><div class="d">この日数以内に公開された動画だけを「最新」タブに表示します</div></div><select id="sLatest" class="fsel"><option value="3">3日</option><option value="7">7日</option><option value="14">14日</option><option value="30">30日</option><option value="60">60日</option><option value="90">90日</option><option value="180">半年</option><option value="0">全期間</option></select></div>
+        <div class="set"><div><div>NEWバッジの期間</div><div class="d">公開からこの日数以内で未視聴の動画に「NEW」を付けます</div></div><select id="sNew" class="fsel"><option value="1">1日</option><option value="2">2日</option><option value="3">3日</option><option value="5">5日</option><option value="7">7日</option><option value="14">14日</option></select></div>
+        <div class="set"><div><div>前回の訪問以降もNEWにする</div><div class="d">期間外でも、前回アプリを開いた後に公開された動画にNEWを付けます</div></div><input type="checkbox" id="sNewVisit" /></div>
+      </div>
+      <div class="blk">
         <span class="lbl"><b>◢</b> DISPLAY — 表示</span>
         <div class="set"><div><div>レンズ強度</div><div class="d">カーソル/指の周りのノードを拡大し、周囲を押し退ける強さ</div></div><input type="range" id="sLens" min="0" max="1.5" step="0.1" /></div>
         <div class="set"><div><div>省電力モード</div><div class="d">ON：描画を30fps・低解像度にし、ぼかし等の重い効果を止めます。しばらく操作がないとさらに減速。再生中・MATRIX表示中は球体の計算を完全停止します（これは常に有効）。AUTO＝スマホ/タブレットでON</div></div><select id="sEco" class="fsel"><option value="auto">AUTO</option><option value="on">ON</option><option value="off">OFF</option></select></div>
@@ -694,11 +705,13 @@ textarea.inp{resize:vertical;min-height:190px;line-height:1.6;white-space:pre;ov
         <span><kbd>W</kbd></span><span>視聴済み切替</span>
         <span><kbd>G</kbd></span><span>NERVE / MATRIX 切替</span>
         <span><kbd>L</kbd></span><span>ラベル表示切替</span>
-        <span><kbd>1</kbd>〜<kbd>8</kbd></span><span>タブ切替</span>
+        <span><kbd>1</kbd>〜<kbd>7</kbd></span><span>タブ切替</span>
+        <span><kbd>Z</kbd></span><span>Shorts表示切替（動画 → ＋Shorts → Shortsのみ）</span>
         <span><kbd>M</kbd></span><span>MAGI 審議（おすすめ動画を3人格の多数決で選ぶ）</span>
         <span><kbd>Esc</kbd></span><span>閉じる</span>
       </div>
       <p>スマホ/タブレット：指を置いた場所の周りが拡大し、ノードが押し退けられます。1本指ドラッグで回転、2本指ピンチで拡大縮小。TILTを有効にすると端末の傾きで球体が動きます。</p>
+      <p>タブ左の「動画 / ＋Shorts / Shorts」で、全タブ共通のShorts表示を切り替えます（初期は動画のみ）。「最新」タブの期間とNEWバッジの基準は ⚙設定 →「LATEST」で変更できます。</p>
       <p>ジャンルは ⚙設定 →「GENRES」で自由に作成・名前変更・色変更でき、「自動でジャンル分け」で推定もできます。左の一覧（スマホは上部）にジャンルごとのセクターが並びます。</p>
       <p>チャンネルを選ぶと上部に「全動画を取得」が出ます（APIキーが必要）。取得後は「全動画」タブとMATRIX表示で、月ごとに全件をスクロールして見られます。</p>
       <p>MATRIX のカード下の <b style="color:#ff8c1a">M B C</b> は MAGI の3人格の判定です。MELCHIOR＝再生数の統計、BALTHASAR＝未視聴で見やすい尺か、CASPER＝新着・ストック・その日の気分。3つ揃うと「全会一致」。</p>
@@ -727,7 +740,6 @@ const TABS = [
   { key: 'popular', label: '殿堂・人気', k: 'MASS' },
   { key: 'deep', label: '深層発掘', k: 'RANDOM' },
   { key: 'marathon', label: '長尺・作業用', k: '28m+' },
-  { key: 'shorts', label: 'Shorts', k: 'PULSE' },
   { key: 'history', label: '履歴・続き', k: 'TRACE' },
   { key: 'saved', label: 'ストック', k: 'STOCK' }
 ];
@@ -739,7 +751,7 @@ const store = {
   get(k, f) { try { const r = localStorage.getItem(k); return r ? JSON.parse(r) : f; } catch (e) { return f; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { if (!store._warned) { store._warned = true; setTimeout(() => toast('⚠ 端末の保存容量が上限です。一部のデータが保存されていません'), 0); } return false; } }
 };
-const DEFAULT_PREFS = { lens: 1, parallax: true, labels: 'auto', density: 1, autoNext: true, autoRot: true, fx: true, eco: 'auto' };
+const DEFAULT_PREFS = { shorts: 'exclude', latestDays: 30, newDays: 3, newSinceVisit: true, lens: 1, parallax: true, labels: 'auto', density: 1, autoNext: true, autoRot: true, fx: true, eco: 'auto' };
 const state = {
   channels: store.get('aether_channels_v1', []),
   videos: store.get('aether_videos_v1', []),
@@ -810,7 +822,7 @@ function monthOf(v) { const t = pubTime(v); if (!t) return 'UNKNOWN'; const j = 
 function isNew(v) {
   if (!v.date || state.watchedIds.includes(v.id) || state.progress[v.id]) return false;
   const t = pubTime(v);
-  return Date.now() - t < 4 * 864e5 || (state.prevVisit && t > state.prevVisit - 864e5);
+  return Date.now() - t < (state.prefs.newDays || 3) * 864e5 || (state.prefs.newSinceVisit && state.prevVisit && t > state.prevVisit);
 }
 function vibrate(ms) { try { navigator.vibrate && navigator.vibrate(ms); } catch (e) {} }
 
@@ -837,13 +849,14 @@ function passChannel(v) {
   return v.channelId === state.sel;
 }
 function histAt(id) { const h = state.history.find(x => x.id === id); return h ? h.at : 0; }
+// Shorts filter applied to every tab: 'exclude' (default) | 'include' | 'only'
+function passShorts(v) { const m = state.prefs.shorts || 'exclude'; return m === 'include' ? true : m === 'only' ? !!v.isShort : !v.isShort; }
 function passTab(v, tab = state.tab) {
-  if (tab === 'shorts') return v.isShort;
+  if (!passShorts(v)) return false;
   if (tab === 'saved') return state.savedIds.includes(v.id);
   if (tab === 'history') return !!histAt(v.id);
-  if (tab === 'archive') return true;
-  if (v.isShort) return false;
-  if (tab === 'marathon') return durMin(v.duration) >= 28;
+  if (tab === 'marathon') return !v.isShort && durMin(v.duration) >= 28;
+  if (tab === 'video' && state.prefs.latestDays > 0) return pubTime(v) >= Date.now() - state.prefs.latestDays * 864e5;
   return true;
 }
 function matchQ(v) {
@@ -1419,9 +1432,18 @@ function renderRail() {
   $('hubList').querySelectorAll('.hub').forEach(b => b.onclick = () => selectSector(b.dataset.k));
 }
 function renderTabs() {
-  $('tabs').innerHTML = TABS.map(t => { const n = state.videos.filter(v => passTab(v, t.key) && passChannel(v)).length; return `<button class="tab ${state.tab === t.key ? 'on' : ''}" data-t="${t.key}"><span class="k">${t.k}</span>${t.label}${t.key === 'deep' ? '' : `<span class="ct">${n}</span>`}</button>`; }).join('');
+  const sm = state.prefs.shorts || 'exclude';
+  const seg = `<span class="sseg" role="group" aria-label="Shorts表示"><button data-sm="exclude" class="${sm === 'exclude' ? 'on' : ''}" title="通常動画のみ">動画</button><button data-sm="include" class="${sm === 'include' ? 'on' : ''}" title="Shortsも含める">＋Shorts</button><button data-sm="only" class="${sm === 'only' ? 'on' : ''}" title="Shortsのみ">Shorts</button></span>`;
+  const lbl = t => t.key === 'video' ? `最新<small style="opacity:.7;margin-left:3px">${state.prefs.latestDays > 0 ? state.prefs.latestDays + '日' : '全期間'}</small>` : t.label;
+  $('tabs').innerHTML = seg + TABS.map(t => { const n = state.videos.filter(v => passTab(v, t.key) && passChannel(v)).length; return `<button class="tab ${state.tab === t.key ? 'on' : ''}" data-t="${t.key}" title="${t.key === 'video' ? '最新の基準は ⚙設定 → LATEST で変更できます' : ''}"><span class="k">${t.k}</span>${lbl(t)}${t.key === 'deep' ? '' : `<span class="ct">${n}</span>`}</button>`; }).join('');
   $('tabs').querySelectorAll('.tab').forEach(b => b.onclick = () => setTab(b.dataset.t));
-  const on = $('tabs').querySelector('.tab.on'), tb = $('tabs'); if (on && isMobile()) tb.scrollLeft = on.offsetLeft - (tb.clientWidth - on.offsetWidth) / 2;
+  $('tabs').querySelectorAll('[data-sm]').forEach(b => b.onclick = () => setShorts(b.dataset.sm));
+  const on = $('tabs').querySelector('.tab.on'), tb = $('tabs'); if (on && isMobile()) { const sw = (tb.querySelector('.sseg') || {}).offsetWidth || 0; tb.scrollLeft = Math.max(0, on.offsetLeft - sw - 10); }
+}
+function setShorts(m) {
+  state.prefs.shorts = m; savePrefs(); state.page = 1;
+  toast({ exclude: 'Shortsを除外して表示', include: 'Shortsも含めて表示', only: 'Shortsのみ表示' }[m]);
+  syslog(`SHORTS FILTER >> ${m.toUpperCase()}`); renderAll();
 }
 function setTab(t) {
   state.tab = t; state.page = 1;
@@ -1430,7 +1452,7 @@ function setTab(t) {
 }
 function nerveCap() { return Math.round((isMobile() ? 28 : 56) * state.prefs.density); }
 function matrixCap() {
-  const st = $('stage').getBoundingClientRect(), short = state.tab === 'shorts';
+  const st = $('stage').getBoundingClientRect(), short = state.prefs.shorts === 'only';
   const cols = Math.max(1, Math.floor(st.width / (short ? 170 : 255))), rows = Math.max(1, Math.floor(st.height / (short ? 330 : 215)));
   return { cols, rows, per: cols * rows };
 }
@@ -1441,7 +1463,7 @@ function cardHTML(v, i) {
   const vt = magiVotes(v, mx.ctx), un = vt.every(Boolean);
   return `<article class="card ${state.watchedIds.includes(v.id) ? 'watched' : ''} ${un ? 'unani' : ''}" data-v="${v.id}" style="--ca:${c.accent};animation-delay:${Math.min(i, 14) * 45}ms">
     <div class="th"><img src="https://i.ytimg.com/vi/${v.id}/${v.isShort ? 'hqdefault' : 'mqdefault'}.jpg" alt="" loading="lazy" decoding="async">
-      <span class="tg ch">${esc(c.name)}</span>${isNew(v) ? '<span class="tg nw">NEW</span>' : ''}${un ? '<span class="tg mg">MAGI 可決</span>' : ''}<span class="tg dt" title="${esc(fmtPub(v))}">${esc(relTime(v))}</span><span class="tg du">${esc(v.duration)}</span>${pc > .02 ? `<span class="pg" style="width:${pc * 100}%"></span>` : ''}</div>
+      <span class="tg ch">${esc(c.name)}</span>${isNew(v) ? '<span class="tg nw">NEW</span>' : ''}${un ? '<span class="tg mg">MAGI 可決</span>' : ''}${v.isShort && state.prefs.shorts !== 'only' ? '<span class="tg sh">SHORTS</span>' : ''}<span class="tg dt" title="${esc(fmtPub(v))}">${esc(relTime(v))}</span><span class="tg du">${esc(v.duration)}</span>${pc > .02 ? `<span class="pg" style="width:${pc * 100}%"></span>` : ''}</div>
     <button class="st ${sv ? 'on' : ''}" data-s="${v.id}" title="ストック">${sv ? '★' : '☆'}</button>
     <div class="bd"><div class="ti" data-t="${esc(v.title)}">${esc(v.title)}</div><div class="mt"><span><span class="lamps" title="MAGI: MELCHIOR / BALTHASAR / CASPER"><i class="${vt[0] ? 'on' : ''}">M</i><i class="${vt[1] ? 'on' : ''}">B</i><i class="${vt[2] ? 'on' : ''}">C</i></span><span class="pd">${esc(fmtPub(v))}</span><span class="ps">${esc(fmtPub(v).slice(5, 10).replace('-', '/'))}</span></span><b>${fmtViews(v.views)}</b></div></div></article>`;
 }
@@ -1452,7 +1474,7 @@ function renderMatrix(list) {
   g.innerHTML = `<div class="magibar"><span class="ttl">MAGI</span><span class="units"><span>MELCHIOR·1</span><span>BALTHASAR·2</span><span>CASPER·3</span></span>
       <span class="stat">全会一致 <b>${un}</b> / ${list.length}</span>
       <button class="btn mg ${state.magiOnly ? 'on' : ''}" data-magi="filter">全会一致のみ</button><button class="btn mg" data-magi="run">MAGI 審議 ▶</button></div>
-    <div class="mgrid ${state.tab === 'shorts' ? 'short' : ''}" id="mgrid"></div><div id="msent"></div>`;
+    <div class="mgrid ${state.prefs.shorts === 'only' ? 'short' : ''}" id="mgrid"></div><div id="msent"></div>`;
   g.scrollTop = 0;
   appendCards(isMobile() ? 24 : 48);
   if (mx.obs) mx.obs.disconnect();
@@ -1562,7 +1584,8 @@ function currentList() {
 function renderStage() {
   document.body.classList.toggle('mode-grid', state.mode === 'grid');
   document.body.classList.toggle('mode-nerve', state.mode === 'nerve');
-  const tabName = { video: 'LATEST', archive: 'FULL ARCHIVE', popular: 'HALL OF MASS', deep: 'DEEP EXCAVATION', marathon: 'LONG ARCHIVE', shorts: 'SHORTS PULSE', history: 'TRACE / RESUME', saved: 'STOCKED' }[state.tab];
+  const tabName0 = { video: 'LATEST', archive: 'FULL ARCHIVE', popular: 'HALL OF MASS', deep: 'DEEP EXCAVATION', marathon: 'LONG ARCHIVE', history: 'TRACE / RESUME', saved: 'STOCKED' }[state.tab];
+  const tabName = tabName0 + ({ exclude: '', include: ' +SHORTS', only: ' · SHORTS ONLY' }[state.prefs.shorts || 'exclude']);
   const secName = state.sel === 'ALL' ? 'ALL HUBS' : state.sel.startsWith('CAT:') ? 'SECTOR ' + state.sel.slice(4) : chOf(state.sel).name;
   $('deckTitle').textContent = `${secName} // ${tabName}`;
   const list = currentList(); let pageItems;
@@ -1581,7 +1604,7 @@ function renderStage() {
   }
   $('emptyMsg').classList.toggle('show', pageItems.length === 0);
   $('emptyMsg').innerHTML = state.channels.length
-    ? '<div><div class="big">NO SIGNAL</div><div class="lbl" style="margin-top:8px">該当ノードなし — 別のタブ/ハブを選択、または ⟳ で同期</div></div>'
+    ? `<div><div class="big">NO SIGNAL</div><div class="lbl" style="margin-top:8px">${state.tab === 'video' && state.prefs.latestDays > 0 ? `直近${state.prefs.latestDays}日に公開された動画はありません — ⚙設定「LATEST」で期間を延ばせます` : '該当ノードなし — 別のタブ/ハブ・Shorts表示を切り替え、または ⟳ で同期'}</div></div>`
     : '<div><div class="big" style="color:var(--c1)">NO LINK</div><div class="lbl" style="margin-top:8px">まだチャンネルが登録されていません</div><button class="btn pri" onclick="openSetup()">＋ チャンネルを一括登録</button></div>';
   $('pageTxt').textContent = state.mode === 'grid' ? `${list.length} NODES` : `CLUSTER ${state.page}/${state.totalPages}`;
   renderChBar();
@@ -2008,6 +2031,7 @@ function renderGenres() {
 function renderCfg() {
   const on = !!state.apiKey;
   $('apiState').textContent = on ? 'API v3 LIVE' : 'PRESET+RSS'; $('apiKey').value = state.apiKey; $('linkTxt').textContent = on ? 'API v3 LINK' : 'PRESET LINK';
+  $('sLatest').value = String(state.prefs.latestDays); $('sNew').value = String(state.prefs.newDays); $('sNewVisit').checked = !!state.prefs.newSinceVisit;
   $('sLens').value = state.prefs.lens; $('sPar').checked = state.prefs.parallax; $('sLabel').value = state.prefs.labels; $('sDensity').value = String(state.prefs.density);
   renderGenres();
   const gOpts = sel => state.genres.map(g => `<option value="${esc(g.name)}" ${g.name === sel ? 'selected' : ''}>${esc(g.name)}</option>`).join('') + '<option value="__new">＋ 新しいジャンル…</option>';
@@ -2134,6 +2158,9 @@ function initEvents() {
   $('sLens').oninput = e => { state.prefs.lens = +e.target.value; savePrefs(); };
   $('sPar').onchange = e => { state.prefs.parallax = e.target.checked; savePrefs(); };
   $('sLabel').onchange = e => { state.prefs.labels = e.target.value; savePrefs(); applyPrefs(); };
+  $('sLatest').onchange = e => { state.prefs.latestDays = +e.target.value; savePrefs(); state.page = 1; renderAll(); toast(`最新タブ：${+e.target.value ? '直近' + e.target.value + '日' : '全期間'}`); };
+  $('sNew').onchange = e => { state.prefs.newDays = +e.target.value; savePrefs(); renderAll(); };
+  $('sNewVisit').onchange = e => { state.prefs.newSinceVisit = e.target.checked; savePrefs(); renderAll(); };
   $('sDensity').onchange = e => { state.prefs.density = +e.target.value; savePrefs(); state.page = 1; renderStage(); };
   $('nAdd').onclick = async () => {
     try {
@@ -2179,7 +2206,8 @@ function initEvents() {
     else if (k === 'w' && state.inspected) toggleWatched(state.inspected);
     else if (k === 'g') setMode(state.mode === 'nerve' ? 'grid' : 'nerve');
     else if (k === 'l') cycleLabel();
-    else if (/^[1-8]$/.test(e.key)) setTab(TABS[+e.key - 1].key);
+    else if (/^[1-9]$/.test(e.key) && TABS[+e.key - 1]) setTab(TABS[+e.key - 1].key);
+    else if (k === 'z') { const o = ['exclude', 'include', 'only']; setShorts(o[(o.indexOf(state.prefs.shorts || 'exclude') + 1) % 3]); }
     else if (k === 'm') runMagi();
   });
   let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(renderAll, 150); });
@@ -2195,7 +2223,7 @@ function initEvents() {
 // =============================================================================
 function boot() {
   const lines = [
-    '<span class="c">MY NERVE TUBE NET</span> // GHOST ARCHIVE TUNER  v5.2',
+    '<span class="c">MY NERVE TUBE NET</span> // GHOST ARCHIVE TUNER  v5.3',
     '> MAGI SYSTEM: MELCHIOR·1 / BALTHASAR·2 / CASPER·3 ... ONLINE',
     '> initializing cyberbrain interface ........ OK',
     `> mounting ${state.channels.length} hubs / ${state.videos.length} memory nodes ... OK`,
