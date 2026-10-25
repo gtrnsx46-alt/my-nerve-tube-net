@@ -796,11 +796,12 @@ textarea.inp{resize:vertical;min-height:190px;line-height:1.6;white-space:pre;ov
         <span><kbd>1</kbd>〜<kbd>7</kbd></span><span>タブ切替</span>
         <span><kbd>Z</kbd></span><span>Shorts表示切替（動画 → ＋Shorts → Shortsのみ）</span>
         <span><kbd>M</kbd></span><span>MAGI 審議（おすすめ動画を3人格の多数決で選ぶ）</span>
-        <span><kbd>Esc</kbd></span><span>閉じる</span>
+        <span><kbd>Esc</kbd></span><span>閉じる / ロック解除</span>
       </div>
       <p>スマホ/タブレット：指を置いた場所の周りが拡大し、ノードが押し退けられます。1本指ドラッグで回転、2本指ピンチで拡大縮小。TILTを有効にすると端末の傾きで球体が動きます。</p>
       <p>タブ左の「動画 / ＋Shorts / Shorts」で、全タブ共通のShorts表示を切り替えます（初期は動画のみ）。「最新」タブの期間とNEWバッジの基準は ⚙設定 →「LATEST」で変更できます。</p>
       <p>ジャンルは ⚙設定 →「GENRES」で自由に作成・名前変更・色変更でき、「自動でジャンル分け」で推定もできます。左の一覧（スマホは上部）にジャンルごとのセクターが並びます。</p>
+      <p>選択（ロック）は、何もない所をタップ・クリック、チャンネルやジャンルの切替、Escキーで解除されます。</p>
       <p>ノード（MATRIXではカード）をタップすると選択され、右（スマホは下）の情報欄が開きます。情報欄の「▶ 再生」を押すとダイブ演出つきで再生します。選択中のノードやカードをもう一度タップすると、演出なしですぐ再生します。</p>
       <p>チャンネルを選ぶと上部に「全動画を取得」が出ます（APIキーが必要）。取得後は「全動画」タブとMATRIX表示で、月ごとに全件をスクロールして見られます。</p>
       <p>MATRIX のカード下の <b style="color:#ff8c1a">M B C</b> は MAGI の3人格の判定です。MELCHIOR＝再生数の統計、BALTHASAR＝未視聴で見やすい尺か、CASPER＝新着・ストック・その日の気分。3つ揃うと「全会一致」。</p>
@@ -1201,6 +1202,7 @@ const SFX = {
     for (let k = 0; k < 9; k++) tone('sine', 1800 + Math.random() * 2400, 1800 + Math.random() * 2400, 0.03, 0.02, { at: 0.15 + k * 0.1, send: 0.6 });
     noiseHit(0.5, 0.09, 6000, 300, { at: 1.15, type: 'lowpass', q: 0.5 });
   },
+  unlock() { if (!sfxOk('unlock', 80)) return; tone('square', 990, 990, 0.04, 0.03, { lp: 2400 }); tone('square', 620, 620, 0.07, 0.03, { lp: 2000, at: 0.05, send: 0.4 }); },
   depthIn() { if (!sfx.ctx || !state.prefs.sfx) return; tone('sine', 520, 110, 0.55, 0.07, { send: 0.6 }); tone('triangle', 1600, 400, 0.3, 0.025, { at: 0.05, send: 0.5 }); noiseHit(0.45, 0.04, 4000, 300, { send: 0.4 }); tone('sine', 90, 50, 0.6, 0.08, { at: 0.5 }); },
   depthOut() { if (!sfx.ctx || !state.prefs.sfx) return; tone('sine', 140, 620, 0.5, 0.06, { send: 0.6 }); noiseHit(0.4, 0.035, 300, 5000, { send: 0.4 }); tone('triangle', 900, 1800, 0.18, 0.02, { at: 0.42, send: 0.5 }); },
   surface() { if (!sfx.ctx || !state.prefs.sfx) return; tone('sawtooth', 1200, 90, 0.8, 0.035, { lp: 4000, lp2: 300, send: 0.5 }); noiseHit(0.7, 0.04, 6000, 200, { send: 0.4 }); },
@@ -1667,7 +1669,7 @@ function endPointer(e) {
   if (e.pointerType !== 'mouse') { net.ptr.active = false; net.hover = null; }
   if (!d || d.moved || e.type === 'pointercancel') return;
   const n = (e.pointerType !== 'mouse' ? d.node : null) || pick(e.clientX, e.clientY, e.pointerType !== 'mouse') || d.node;
-  if (!n) { kick(e.clientX, e.clientY, 9); SFX.ping(); return; }
+  if (!n) { if (releaseLock()) { kick(e.clientX, e.clientY, 5); return; } kick(e.clientX, e.clientY, 9); SFX.ping(); return; }
   if (n.type === 'hub') goSector(state.sel === n.channelId ? 'ALL' : n.channelId);
   else if (state.inspected === n.id) openPlayer(n.id);
   else { inspect(n.video, true); vibrate(12); SFX.lock(); }
@@ -1985,6 +1987,7 @@ function drawDepthFx(T) {
   ctx.restore();
 }
 function selectSector(key) {
+  if (key !== state.sel) releaseLock(true);
   state.sel = key; state.page = 1; net.tYaw = null; net.tZoom = 1;
   syslog(`ROUTE >> ${key === 'ALL' ? 'ALL HUBS' : key.startsWith('CAT:') ? 'SECTOR ' + key.slice(4) : chOf(key).handle}`, 'ok');
   renderAll();
@@ -2013,7 +2016,15 @@ function inspect(v, focus) {
   if (focus) { focusNode(net.vids.find(x => x.id === v.id)); syslog(`LOCK >> ${v.id}`); }
   updateMini();
 }
-function clearInspect() { $('insPrevN').style.display = $('insNextN').style.display = 'none'; state.inspected = null; document.body.classList.remove('has-ins'); setAccent(); $('insEmpty').classList.remove('hide'); $('insBody').classList.remove('show'); $('inspector').classList.remove('show-m'); net.tZoom = 1; }
+function releaseLock(quiet) {
+  if (!state.inspected) return false;
+  const n = net.vids.find(x => x.id === state.inspected);
+  if (n && n.g && !n.g.dot) net.ripples.push({ x: n.g.x + n.g.w / 2, y: n.g.y + n.g.h / 2, r: Math.max(n.g.w, n.g.h) / 2, a: 0.6 });
+  clearInspect();
+  if (!quiet) { SFX.unlock(); syslog('LOCK RELEASED'); }
+  return true;
+}
+function clearInspect() { $('insPrevN').style.display = $('insNextN').style.display = 'none'; state.inspected = null; document.querySelectorAll('#mgrid .card.sel').forEach(el => el.classList.remove('sel')); document.body.classList.remove('has-ins'); setAccent(); $('insEmpty').classList.remove('hide'); $('insBody').classList.remove('show'); $('inspector').classList.remove('show-m'); net.tZoom = 1; }
 function updateBtns() {
   if (state.inspected) {
     const s = state.savedIds.includes(state.inspected), w = state.watchedIds.includes(state.inspected);
@@ -2654,6 +2665,7 @@ function initEvents() {
     const mg = e.target.closest('[data-magi]');
     if (mg) { if (mg.dataset.magi === 'run') runMagi(); else { state.magiOnly = !state.magiOnly; renderStage(); } return; }
     const st = e.target.closest('.st'); if (st) { e.stopPropagation(); toggleSave(st.dataset.s); return; }
+    if (!e.target.closest('.card, button, a, .magibar')) { releaseLock(); return; }
     const card = e.target.closest('.card'); if (card) { const v = vidById(card.dataset.v); if (state.inspected === v.id && card.classList.contains('sel')) openPlayer(v.id); else { inspect(v, false); SFX.lock(); } }
   });
   if (matchMedia('(hover: hover)').matches) $('matrix').addEventListener('mouseover', e => {
@@ -2735,6 +2747,7 @@ function initEvents() {
 
   window.addEventListener('keydown', e => {
     const tag = e.target.tagName;
+    if (e.key === 'Escape' && !anyModal() && tag !== 'INPUT' && tag !== 'TEXTAREA' && releaseLock()) return;
     if (e.key === 'Escape') { if ($('playerModal').classList.contains('show')) closePlayer(); $('cfgModal').classList.remove('show'); $('helpModal').classList.remove('show'); $('setupModal').classList.remove('show'); magiRun++; $('magiModal').classList.remove('show'); if (tag === 'INPUT' || tag === 'TEXTAREA') e.target.blur(); return; }
     if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || e.metaKey || e.ctrlKey || e.altKey) return;
     const playing = $('playerModal').classList.contains('show');
@@ -2769,7 +2782,7 @@ function initEvents() {
 // =============================================================================
 function boot() {
   const lines = [
-    '<span class="c">MY NERVE TUBE NET</span> // GHOST ARCHIVE TUNER  v6.2',
+    '<span class="c">MY NERVE TUBE NET</span> // GHOST ARCHIVE TUNER  v6.3',
     '> MAGI SYSTEM: MELCHIOR·1 / BALTHASAR·2 / CASPER·3 ... ONLINE',
     '> initializing cyberbrain interface ........ OK',
     `> mounting ${state.channels.length} hubs / ${state.videos.length} memory nodes ... OK`,
