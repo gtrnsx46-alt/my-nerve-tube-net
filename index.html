@@ -330,6 +330,12 @@ select.fsel{font-family:var(--mono);font-size:10px;background:#020a12;border:1px
 input[type=range]{accent-color:var(--c1);width:140px}
 #chList .it{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 6px;border-bottom:1px dashed var(--c1-line)}
 #chList .it .sw{width:10px;height:10px;flex:none}
+#chList .it select{max-width:130px}
+.gr{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px dashed var(--c1-line)}
+.gr input[type=color]{width:30px;height:30px;padding:0;border:1px solid var(--c1-line);background:none;flex:none}
+.gr .inp{flex:1;padding:6px 8px}
+.gr .cnt{font-family:var(--mono);font-size:10px;color:var(--mute);white-space:nowrap}
+#gMsg{white-space:pre-wrap;line-height:1.7;text-transform:none;letter-spacing:.04em}
 #chList .it .meta{font-family:var(--mono);font-size:9px;color:var(--mute);word-break:break-all}
 .del{font-family:var(--mono);font-size:10px;color:var(--alert);border:1px solid rgba(255,46,99,.4);padding:5px 9px;flex:none}
 .keys{display:grid;grid-template-columns:auto 1fr;gap:8px 14px;font-size:12px}
@@ -589,9 +595,17 @@ textarea.inp{resize:vertical;min-height:190px;line-height:1.6;white-space:pre;ov
         <div class="row2">
           <input id="nSrc" class="inp" placeholder="https://www.youtube.com/@xxxx  /  @xxxx  /  UC..." />
           <input id="nName" class="inp" placeholder="表示名（空欄なら自動）" style="flex:0 1 180px" />
-          <select id="nCat" class="fsel" style="padding:9px"><option value="IDOL">IDOL</option><option value="GAMING">GAME</option><option value="VARIETY" selected>VARIETY</option></select>
+          <select id="nCat" class="fsel" style="padding:9px"></select>
           <button class="btn pri" id="nAdd">追加</button>
         </div>
+      </div>
+      <div class="blk">
+        <span class="lbl"><b>◢</b> GENRES — ジャンル</span>
+        <p>ジャンルは自由に作れます。名前・色を変えたり、各チャンネルのジャンルを下の「LINKED HUBS」で切り替えたりできます。「自動でジャンル分け」は動画タイトルの傾向（APIキーがあればYouTubeのカテゴリも）から推定します。</p>
+        <div id="genreList"></div>
+        <div class="row2" style="margin-top:10px"><input id="gNew" class="inp" placeholder="新しいジャンル名（例：音楽）" /><button class="btn" id="gAdd">＋ 追加</button></div>
+        <div class="row2" style="margin-top:8px"><button class="btn pri" id="gAuto">⚙ 自動でジャンル分け</button><label class="chk"><input type="checkbox" id="gAll" /> 設定済みのチャンネルも分け直す</label></div>
+        <div id="gMsg" class="lbl" style="margin-top:8px"></div>
       </div>
       <div class="blk">
         <span class="lbl"><b>◢</b> DISPLAY — 表示</span>
@@ -636,9 +650,10 @@ textarea.inp{resize:vertical;min-height:190px;line-height:1.6;white-space:pre;ov
     <div class="pf-head"><span class="pf-tag">LINK SETUP</span><h2 style="font-size:13px;margin:0;flex:1">チャンネル一括登録</h2><button class="btn" id="setupClose">✕</button></div>
     <div class="body">
       <p style="margin:0">見たいチャンネルを1行に1つずつ貼り付けてください。登録内容はこの端末のブラウザ内だけに保存され、公開サイトには含まれません。</p>
-      <p style="margin:0">書式：<code>チャンネルID(UC…) または URL / @ハンドル, @ハンドル, 表示名, カテゴリ, 色</code><br>カテゴリは IDOL / GAME / VARIETY。2項目目以降は省略可、<code>#</code> で始まる行は無視されます。</p>
+      <p style="margin:0">書式：<code>チャンネルID(UC…) または URL / @ハンドル, @ハンドル, 表示名, ジャンル, 色</code><br>ジャンルは自由な名前でOK（例：アイドル / ゲーム / 音楽 / お笑い）。空欄なら自動で推定します。2項目目以降は省略可、<code>#</code> で始まる行は無視されます。</p>
       <textarea id="bulkTxt" class="inp" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="UCxxxxxxxxxxxxxxxxxxxxxx, @handle, 表示名, IDOL, #FF3E9D"></textarea>
       <div class="row2" style="align-items:center">
+        <label class="chk"><input type="checkbox" id="bulkAuto" checked> ジャンル未指定は自動分類</label>
         <label class="chk"><input type="radio" name="bulkMode" value="replace" checked> 置き換える</label>
         <label class="chk"><input type="radio" name="bulkMode" value="append"> 今の登録に追加</label>
       </div>
@@ -671,6 +686,7 @@ textarea.inp{resize:vertical;min-height:190px;line-height:1.6;white-space:pre;ov
         <span><kbd>Esc</kbd></span><span>閉じる</span>
       </div>
       <p>スマホ/タブレット：指を置いた場所の周りが拡大し、ノードが押し退けられます。1本指ドラッグで回転、2本指ピンチで拡大縮小。TILTを有効にすると端末の傾きで球体が動きます。</p>
+      <p>ジャンルは ⚙設定 →「GENRES」で自由に作成・名前変更・色変更でき、「自動でジャンル分け」で推定もできます。左の一覧（スマホは上部）にジャンルごとのセクターが並びます。</p>
       <p>チャンネルを選ぶと上部に「全動画を取得」が出ます（APIキーが必要）。取得後は「全動画」タブとMATRIX表示で、月ごとに全件をスクロールして見られます。</p>
       <p>MATRIX のカード下の <b style="color:#ff8c1a">M B C</b> は MAGI の3人格の判定です。MELCHIOR＝再生数の統計、BALTHASAR＝未視聴で見やすい尺か、CASPER＝新着・ストック・その日の気分。3つ揃うと「全会一致」。</p>
       <p>iPhone：Safariの共有ボタン →「ホーム画面に追加」でアプリのように全画面で使えます。</p>
@@ -687,7 +703,7 @@ const DEFAULT_CHANNELS = [];
 
 const INITIAL_VIDEOS = [];
 
-const SECTORS = [
+const SECTORS_LEGACY = [
   { key: 'CAT:IDOL', label: '✦ SECTOR IDOL', cat: 'IDOL', accent: '#FF3E9D' },
   { key: 'CAT:GAMING', label: '◈ SECTOR GAME', cat: 'GAMING', accent: '#3B82F6' },
   { key: 'CAT:VARIETY', label: '⚡ SECTOR VARIETY', cat: 'VARIETY', accent: '#00F5A0' }
@@ -721,6 +737,7 @@ const state = {
   apiKey: store.get('aether_yt_api_key_v1', ''),
   prefs: Object.assign({}, DEFAULT_PREFS, store.get('aether_prefs_v1', {})),
   prevVisit: store.get('aether_lastvisit_v1', 0),
+  genres: store.get('aether_genres_v1', []),
   tab: 'video', mode: 'nerve', sel: 'ALL', q: '', sortBy: 'date',
   hideWatched: false, page: 1, totalPages: 1, seed: 1,
   inspected: null, playing: null, queue: []
@@ -742,7 +759,20 @@ function fmtViews(n) { if (!n) return n === 0 ? '—' : '---'; if (n >= 1e8) ret
 function isoToSec(iso) { const m = (iso || '').match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/); return m ? (+m[1] || 0) * 3600 + (+m[2] || 0) * 60 + (+m[3] || 0) : 180; }
 function secToDur(s) { s = Math.floor(s); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return h ? `${h}:${String(m).padStart(2, '0')}:${String(x).padStart(2, '0')}` : `${m}:${String(x).padStart(2, '0')}`; }
 function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
-function chOf(id) { return state.channels.find(c => c.id === id) || { id, handle: '@node', name: 'Node', fullName: 'Node', accent: '#22e6ff', category: 'VARIETY' }; }
+function chOf(id) { return state.channels.find(c => c.id === id) || { id, handle: '@node', name: 'Node', fullName: 'Node', accent: '#22e6ff', category: UNSORTED }; }
+// ---------- user-defined genres ----------
+const UNSORTED = '未分類';
+const GENRE_PALETTE = ['#FF3E9D', '#3B82F6', '#00F5A0', '#FFB800', '#B57CFF', '#FF6B35', '#22e6ff', '#F497DA', '#facc15', '#38bdf8'];
+const GENRE_DEFAULT_COLOR = { IDOL: '#FF3E9D', 'アイドル': '#FF3E9D', GAME: '#3B82F6', 'ゲーム': '#3B82F6', VARIETY: '#00F5A0', 'お笑い・バラエティ': '#00F5A0', '音楽': '#B57CFF', [UNSORTED]: '#6b93a2' };
+function syncGenres() {
+  state.channels.forEach(c => { if (c.category === 'GAMING') c.category = 'GAME'; if (!c.category) c.category = UNSORTED; });
+  const have = new Set(state.genres.map(g => g.name));
+  state.channels.forEach(c => { if (!have.has(c.category)) { have.add(c.category); state.genres.push({ name: c.category, accent: GENRE_DEFAULT_COLOR[c.category] || GENRE_PALETTE[state.genres.length % GENRE_PALETTE.length] }); } });
+  state.genres = state.genres.filter(g => (g.keep && g.name !== UNSORTED) || state.channels.some(c => c.category === g.name));
+  store.set('aether_genres_v1', state.genres);
+}
+const genreOf = name => state.genres.find(g => g.name === name) || { name, accent: '#22e6ff' };
+function findGenreName(x) { const t = String(x).trim(); const hit = state.genres.find(g => g.name.toLowerCase() === t.toLowerCase()); return hit ? hit.name : t; }
 function hashStr(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
 function rng(seed) { return function () { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 function hexA(hex, a) { const h = hex.replace('#', ''); const n = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`; }
@@ -780,8 +810,7 @@ function syslog(msg, cls = '') {
 function setAccent(c) {
   if (!c) {
     c = '#22e6ff';
-    const sec = SECTORS.find(s => s.key === state.sel);
-    if (sec) c = sec.accent; else if (state.sel !== 'ALL') c = chOf(state.sel).accent || c;
+    if (state.sel.startsWith('CAT:')) c = genreOf(state.sel.slice(4)).accent; else if (state.sel !== 'ALL') c = chOf(state.sel).accent || c;
   }
   document.documentElement.style.setProperty('--accent', c);
 }
@@ -1335,7 +1364,7 @@ function renderRail() {
   const cnt = fn => base.filter(fn).length, nw = fn => state.videos.filter(v => fn(v) && isNew(v)).length;
   const items = [
     { key: 'ALL', label: 'ALL HUBS', sub: `${state.channels.length} CHANNELS LINKED`, accent: '#22e6ff', n: cnt(v => known.has(v.channelId)), sector: true },
-    ...SECTORS.map(s => ({ key: s.key, label: s.label, sub: `${state.channels.filter(c => c.category === s.cat).length} HUBS`, accent: s.accent, n: cnt(v => known.has(v.channelId) && chOf(v.channelId).category === s.cat), sector: true })),
+    ...state.genres.filter(g => state.channels.some(c => c.category === g.name)).map(g => ({ key: 'CAT:' + g.name, label: '◆ ' + g.name, sub: `${state.channels.filter(c => c.category === g.name).length} HUBS`, accent: g.accent, n: cnt(v => known.has(v.channelId) && chOf(v.channelId).category === g.name), sector: true })),
     'sep',
     ...state.channels.map(c => ({ key: c.id, label: c.name, sub: c.handle, accent: c.accent || '#22e6ff', n: cnt(v => v.channelId === c.id), nw: nw(v => v.channelId === c.id) }))
   ];
@@ -1734,7 +1763,7 @@ function renderChBar() {
 }
 function entryFromApi(it, chId) {
   const sec = isoToSec(it.contentDetails && it.contentDetails.duration), title = (it.snippet && it.snippet.title) || '', pub = (it.snippet && it.snippet.publishedAt) || '';
-  return { id: it.id, channelId: chId, title, date: pub ? new Date(Date.parse(pub) + 9 * 3600e3).toISOString().slice(0, 10) : '', pub, duration: secToDur(sec), views: +((it.statistics && it.statistics.viewCount) || 0), isShort: sec <= 62 || /#shorts/i.test(title) };
+  return { id: it.id, channelId: chId, cat: it.snippet && it.snippet.categoryId, title, date: pub ? new Date(Date.parse(pub) + 9 * 3600e3).toISOString().slice(0, 10) : '', pub, duration: secToDur(sec), views: +((it.statistics && it.statistics.viewCount) || 0), isShort: sec <= 62 || /#shorts/i.test(title) };
 }
 const idx = () => { const m = new Map(); state.videos.forEach((v, i) => m.set(v.id, i)); return m; };
 async function fetchArchive(chId) {
@@ -1796,11 +1825,11 @@ async function resolveChannel(src) {
 }
 
 // ---------- bulk channel setup ----------
-const CAT_MAP = { IDOL: 'IDOL', 'アイドル': 'IDOL', GAME: 'GAMING', GAMING: 'GAMING', 'ゲーム': 'GAMING', VARIETY: 'VARIETY', 'バラエティ': 'VARIETY' };
+
 const PALETTE = ['#22e6ff', '#FF3E9D', '#FFB800', '#00F5A0', '#B57CFF', '#FF6B35', '#3B82F6', '#F497DA', '#facc15', '#38bdf8'];
 function channelsText() {
   return '# My Nerve Tube Net channels\n# ID, @ハンドル, 表示名, カテゴリ, 色\n' +
-    state.channels.map(c => [c.id, c.handle, String(c.name).replace(/[,\t|]/g, ' '), c.category === 'GAMING' ? 'GAME' : (c.category || 'VARIETY'), c.accent || ''].join(', ')).join('\n');
+    state.channels.map(c => [c.id, c.handle, String(c.name).replace(/[,\t|]/g, ' '), c.category === UNSORTED ? '' : String(c.category).replace(/[,\t|]/g, ' '), c.accent || ''].join(', ').replace(/, ,/g, ', ,')).join('\n');
 }
 async function copyText(t, msg) {
   try { await navigator.clipboard.writeText(t); toast(msg); }
@@ -1818,16 +1847,14 @@ async function parseBulk(text) {
     try {
       const r = await resolveChannel(f[0]);
       if (seen.has(r.id)) continue; seen.add(r.id);
-      let handle = r.handle || '', name = '', cat = 'VARIETY', color = '';
-      f.slice(1).forEach(x => {
-        if (/^@/.test(x)) handle = x;
-        else if (/^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(x)) color = x;
-        else if (CAT_MAP[x.toUpperCase()] || CAT_MAP[x]) cat = CAT_MAP[x.toUpperCase()] || CAT_MAP[x];
-        else if (!name) name = x;
-      });
+      let handle = r.handle || '', name = '', cat = '', color = '';
+      const raw = line.split(/\s*[,\t|，、]\s*/).map(x => x.trim());
+      const rest = raw.slice(1).filter(x => !/^@/.test(x) && !/^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(x));
+      raw.slice(1).forEach(x => { if (/^@/.test(x)) handle = x; else if (/^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(x)) color = x; });
+      name = rest[0] || ''; cat = rest[1] ? findGenreName(rest[1]) : '';
       if (!handle && /^@/.test(f[0])) handle = f[0];
       name = name || r.title || handle || r.id;
-      out.push({ id: r.id, handle: handle || '@' + r.id.slice(2, 10), name, fullName: r.title || name, category: cat, accent: color || PALETTE[out.length % PALETTE.length] });
+      out.push({ id: r.id, handle: handle || '@' + r.id.slice(2, 10), name, fullName: r.title || name, category: cat || UNSORTED, autoGenre: !cat, accent: color || PALETTE[out.length % PALETTE.length] });
     } catch (e) { errs.push(`・${line.slice(0, 40)} → ${e.message}`); }
   }
   return { out, errs };
@@ -1844,21 +1871,108 @@ async function runBulk() {
     const mode = document.querySelector('input[name=bulkMode]:checked').value;
     if (mode === 'replace') state.channels = out;
     else out.forEach(c => { const i = state.channels.findIndex(x => x.id === c.id); if (i >= 0) state.channels[i] = c; else state.channels.push(c); });
-    store.set('aether_channels_v1', state.channels);
+    syncGenres(); store.set('aether_channels_v1', state.channels);
     state.sel = 'ALL'; state.page = 1;
     $('bulkMsg').textContent = `${out.length} チャンネルを登録しました。動画を同期しています…` + (errs.length ? `\n読み込めなかった行：\n${errs.join('\n')}` : '');
     renderAll(); renderCfg();
     await sync(false);
+    if ($('bulkAuto').checked && out.some(c => c.autoGenre)) { $('bulkMsg').textContent += '\nジャンルを自動分類しています…'; const res = await autoGenre(false); $('bulkMsg').textContent += '\n' + res; }
     if (!errs.length) setTimeout(() => $('setupModal').classList.remove('show'), 600);
     $('bulkTxt').value = '';
   } finally { $('bulkGo').disabled = false; }
+}
+
+// ---------- automatic genre classification ----------
+const YT_CAT = { 1: '映画・アニメ', 2: '車・乗り物', 10: '音楽', 15: 'ペット・動物', 17: 'スポーツ', 19: '旅行', 20: 'ゲーム', 22: 'Vlog・日常', 23: 'お笑い・バラエティ', 24: 'エンタメ', 25: 'ニュース', 26: 'ハウツー', 27: '学び・解説', 28: '科学・技術', 29: '社会' };
+const GENRE_KW = [
+  ['アイドル', /坂46|坂チャンネル|坂ちゃんねる|ひなた坂|イコラブ|ノイミー|ニアジョイ|≒JOY|＝LOVE|=LOVE|≠ME|アイドル|idol|AKB|SKE|NMB|ハロプロ|モーニング娘|生誕|握手会|期生|センター|フォーメーション|みりにゃ/i],
+  ['ゲーム', /ゲーム|実況|プレイ|攻略|マイクラ|minecraft|apex|スプラ|ポケモン|ホラゲ|steam|rpg|fps|ガチャ|配信者|先行プレイ|クリア|ボス/i],
+  ['音楽', /歌ってみた|music video|\bmv\b|cover|カバー|弾いてみた|叩いてみた|official audio|lyric|ライブ映像|live映像|作曲/i],
+  ['お笑い・バラエティ', /ドッキリ|企画|芸人|コント|漫才|クイズ|大喜利|無茶振り|ツッコ|対決|罰ゲーム|検証|やってみた/i],
+  ['グルメ・料理', /料理|レシピ|グルメ|大食い|食べて|ラーメン|寿司|スシロー|焼肉|飯テロ|デニーズ|カフェ/i],
+  ['Vlog・日常', /vlog|密着|1日|ルーティン|購入品|モーニング|休日|旅行|旅/i],
+  ['学び・解説', /解説|講義|勉強|授業|論文|数学|物理|プログラミング|講座|入門/i]
+];
+async function channelCats(c) {
+  const key = (state.apiKey || '').trim();
+  let vids = state.videos.filter(v => v.channelId === c.id);
+  if (key && !vids.some(v => v.cat)) {
+    try {
+      const pl = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&maxResults=25&playlistId=UU${c.id.slice(2)}&key=${encodeURIComponent(key)}`);
+      const ids = ((await pl.json()).items || []).map(i => i.contentDetails && i.contentDetails.videoId).filter(Boolean);
+      if (ids.length) {
+        const vr = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${ids.join(',')}&key=${encodeURIComponent(key)}`);
+        const items = (await vr.json()).items || [];
+        const map = new Map(state.videos.map(v => [v.id, v]));
+        items.forEach(it => { const v = map.get(it.id); if (v) v.cat = it.snippet.categoryId; });
+        vids = vids.length ? state.videos.filter(v => v.channelId === c.id) : items.map(it => ({ title: it.snippet.title, cat: it.snippet.categoryId }));
+      }
+    } catch (e) {}
+  }
+  return vids;
+}
+function guessGenre(c, vids) {
+  const texts = [c.name, c.fullName || '', c.handle || ''].concat(vids.slice(0, 60).map(v => v.title || ''));
+  const kw = GENRE_KW.map(([g, re]) => [g, texts.filter(t => re.test(t)).length]);
+  const nameHit = GENRE_KW.find(([g, re]) => re.test(c.name + ' ' + (c.fullName || '')));
+  const catVotes = {}; vids.forEach(v => { if (v.cat && YT_CAT[v.cat]) catVotes[YT_CAT[v.cat]] = (catVotes[YT_CAT[v.cat]] || 0) + 1; });
+  const topCat = Object.entries(catVotes).sort((a, b) => b[1] - a[1])[0];
+  const total = Math.max(1, texts.length - 3);
+  const idol = kw.find(k => k[0] === 'アイドル')[1];
+  if (nameHit && nameHit[0] === 'アイドル' || idol >= Math.max(3, total * 0.15)) return 'アイドル';
+  if (topCat && ['ゲーム', '音楽'].includes(topCat[0]) && topCat[1] >= vids.length * 0.5) return topCat[0];
+  const best = kw.filter(k => k[0] !== 'アイドル').sort((a, b) => b[1] - a[1])[0];
+  if (best && best[1] >= Math.max(2, total * 0.2)) return best[0];
+  if (topCat) return topCat[0] === 'エンタメ' && best && best[1] ? best[0] : topCat[0];
+  if (nameHit) return nameHit[0];
+  return best && best[1] ? best[0] : 'その他';
+}
+async function autoGenre(all) {
+  const targets = state.channels.filter(c => all || c.autoGenre || !c.category || c.category === UNSORTED);
+  if (!targets.length) return '自動分類の対象になるチャンネルはありませんでした（「分け直す」にチェックで全チャンネル対象）。';
+  const lines = [];
+  for (const c of targets) {
+    const vids = await channelCats(c);
+    const g = findGenreName(guessGenre(c, vids));
+    c.category = g; delete c.autoGenre; lines.push(`・${c.name} → ${g}`);
+  }
+  syncGenres(); store.set('aether_channels_v1', state.channels); store.set('aether_videos_v1', state.videos);
+  renderAll(); renderCfg();
+  return `自動分類しました（違っていたら下のLINKED HUBSで変更できます）\n${lines.join('\n')}`;
+}
+function renderGenres() {
+  syncGenres();
+  $('genreList').innerHTML = state.genres.map((g, i) => `<div class="gr"><input type="color" value="${esc(g.accent)}" data-gc="${i}" title="色"><input class="inp" value="${esc(g.name)}" data-gn="${i}" ${g.name === UNSORTED ? 'readonly' : ''}><span class="cnt">${state.channels.filter(c => c.category === g.name).length} ch</span>${g.name === UNSORTED ? '' : `<button class="del" data-gd="${i}">削除</button>`}</div>`).join('') || '<p>まだジャンルがありません</p>';
+  $('genreList').querySelectorAll('[data-gc]').forEach(el => el.onchange = () => { state.genres[+el.dataset.gc].accent = el.value; store.set('aether_genres_v1', state.genres); renderAll(); });
+  $('genreList').querySelectorAll('[data-gn]').forEach(el => el.onchange = () => {
+    const g = state.genres[+el.dataset.gn], nn = el.value.trim();
+    if (!nn || state.genres.some(x => x !== g && x.name === nn)) { el.value = g.name; return toast('同じ名前のジャンルがあります'); }
+    state.channels.forEach(c => { if (c.category === g.name) c.category = nn; });
+    if (state.sel === 'CAT:' + g.name) state.sel = 'CAT:' + nn;
+    g.name = nn; store.set('aether_channels_v1', state.channels); store.set('aether_genres_v1', state.genres); renderAll(); renderCfg();
+  });
+  $('genreList').querySelectorAll('[data-gd]').forEach(el => el.onclick = () => {
+    const g = state.genres[+el.dataset.gd];
+    if (!confirm(`ジャンル「${g.name}」を削除しますか？（所属チャンネルは「${UNSORTED}」になります）`)) return;
+    state.channels.forEach(c => { if (c.category === g.name) c.category = UNSORTED; });
+    state.genres.splice(+el.dataset.gd, 1); if (state.sel === 'CAT:' + g.name) state.sel = 'ALL';
+    store.set('aether_channels_v1', state.channels); renderAll(); renderCfg();
+  });
+  $('nCat').innerHTML = `<option value="">ジャンル：自動</option>` + state.genres.map(g => `<option value="${esc(g.name)}">${esc(g.name)}</option>`).join('');
 }
 
 function renderCfg() {
   const on = !!state.apiKey;
   $('apiState').textContent = on ? 'API v3 LIVE' : 'PRESET+RSS'; $('apiKey').value = state.apiKey; $('linkTxt').textContent = on ? 'API v3 LINK' : 'PRESET LINK';
   $('sLens').value = state.prefs.lens; $('sPar').checked = state.prefs.parallax; $('sLabel').value = state.prefs.labels; $('sDensity').value = String(state.prefs.density);
-  $('chList').innerHTML = state.channels.map(c => `<div class="it"><div style="display:flex;gap:10px;align-items:center;min-width:0"><span class="sw" style="background:${c.accent || '#22e6ff'}"></span><div style="min-width:0"><div>${esc(c.fullName || c.name)}</div><div class="meta">${esc(c.handle)} • ${esc(c.id)} • ${c.category || '-'}</div></div></div><button class="del" data-d="${esc(c.id)}">切断</button></div>`).join('');
+  renderGenres();
+  const gOpts = sel => state.genres.map(g => `<option value="${esc(g.name)}" ${g.name === sel ? 'selected' : ''}>${esc(g.name)}</option>`).join('') + '<option value="__new">＋ 新しいジャンル…</option>';
+  $('chList').innerHTML = state.channels.map(c => `<div class="it"><div style="display:flex;gap:10px;align-items:center;min-width:0"><span class="sw" style="background:${c.accent || '#22e6ff'}"></span><div style="min-width:0"><div>${esc(c.fullName || c.name)}</div><div class="meta">${esc(c.handle)} • ${esc(c.id)}</div></div></div><span style="display:flex;gap:6px;align-items:center"><select class="fsel" data-cg="${esc(c.id)}" title="ジャンル">${gOpts(c.category)}</select><button class="del" data-d="${esc(c.id)}">切断</button></span></div>`).join('');
+  $('chList').querySelectorAll('[data-cg]').forEach(el => el.onchange = () => {
+    const c = chOf(el.dataset.cg); let v = el.value;
+    if (v === '__new') { v = (prompt('新しいジャンル名') || '').trim(); if (!v) { el.value = c.category; return; } v = findGenreName(v); }
+    c.category = v; delete c.autoGenre; syncGenres(); store.set('aether_channels_v1', state.channels); renderAll(); renderCfg();
+  });
   $('chList').querySelectorAll('.del').forEach(b => b.onclick = () => {
     const c = chOf(b.dataset.d); if (!confirm(`「${c.name}」を切断しますか？`)) return;
     state.channels = state.channels.filter(x => x.id !== b.dataset.d); if (state.sel === b.dataset.d) state.sel = 'ALL';
@@ -1977,16 +2091,20 @@ function initEvents() {
       if (state.channels.some(c => c.id === r.id)) throw new Error('既に登録済みです');
       const name = $('nName').value.trim() || r.title || r.handle || r.id;
       const palette = ['#22e6ff', '#00ffa3', '#ff8a3d', '#c084fc', '#ff2e63', '#facc15', '#38bdf8', '#f472b6'];
-      state.channels.push({ id: r.id, handle: r.handle || '@' + name.replace(/\s+/g, ''), name, fullName: r.title || name, category: $('nCat').value, accent: palette[state.channels.length % palette.length] });
+      state.channels.push({ id: r.id, handle: r.handle || '@' + name.replace(/\s+/g, ''), name, fullName: r.title || name, category: $('nCat').value || UNSORTED, autoGenre: !$('nCat').value, accent: palette[state.channels.length % palette.length] });
       store.set('aether_channels_v1', state.channels); $('nSrc').value = ''; $('nName').value = '';
       renderAll(); renderCfg(); toast(`「${name}」を追加 — 同期します`);
-      const prevSel = state.sel; state.sel = r.id; await sync(true); state.sel = prevSel; renderAll();
+      const prevSel = state.sel; state.sel = r.id; await sync(true); state.sel = prevSel;
+      if (!$('nCat').value) await autoGenre(false);
+      syncGenres(); renderAll(); renderCfg();
     } catch (e) { toast(e.message || '追加できませんでした'); } finally { $('nAdd').disabled = false; }
   };
   $('expBtn').onclick = exportData; $('impBtn').onclick = () => $('impFile').click();
   $('impFile').onchange = e => { if (e.target.files[0]) importData(e.target.files[0]); e.target.value = ''; };
   $('clrHist').onclick = () => { if (!confirm('視聴履歴と続きから再生の位置を消去しますか？')) return; state.history = []; state.progress = {}; store.set('aether_history_v1', []); store.set('aether_progress_v1', {}); renderAll(); toast('履歴を消去しました'); };
   $('resetBtn').onclick = () => { if (!confirm('登録チャンネルと取得済みの動画リストをすべて削除しますか？（ストック・履歴は残ります）')) return; state.channels = []; state.videos = []; state.sel = 'ALL'; store.set('aether_channels_v1', []); store.set('aether_videos_v1', []); renderAll(); renderCfg(); toast('すべてのチャンネルを削除しました'); };
+  $('gAdd').onclick = () => { const n = $('gNew').value.trim(); if (!n) return; if (state.genres.some(g => g.name === n)) return toast('同じ名前のジャンルがあります'); state.genres.push({ name: n, accent: GENRE_PALETTE[state.genres.length % GENRE_PALETTE.length], keep: true }); store.set('aether_genres_v1', state.genres); $('gNew').value = ''; renderCfg(); };
+  $('gAuto').onclick = async () => { $('gAuto').disabled = true; $('gMsg').textContent = '分類中…'; try { $('gMsg').textContent = await autoGenre($('gAll').checked); } finally { $('gAuto').disabled = false; } };
   $('openSetup').onclick = () => { $('cfgModal').classList.remove('show'); openSetup(); };
   $('copyChannels').onclick = () => copyText(channelsText(), 'チャンネル一覧をコピーしました');
   $('setupClose').onclick = () => $('setupModal').classList.remove('show');
@@ -2026,7 +2144,7 @@ function initEvents() {
 // =============================================================================
 function boot() {
   const lines = [
-    '<span class="c">MY NERVE TUBE NET</span> // GHOST ARCHIVE TUNER  v5.0',
+    '<span class="c">MY NERVE TUBE NET</span> // GHOST ARCHIVE TUNER  v5.1',
     '> MAGI SYSTEM: MELCHIOR·1 / BALTHASAR·2 / CASPER·3 ... ONLINE',
     '> initializing cyberbrain interface ........ OK',
     `> mounting ${state.channels.length} hubs / ${state.videos.length} memory nodes ... OK`,
@@ -2040,7 +2158,7 @@ function boot() {
 }
 ['gesturestart', 'gesturechange'].forEach(t => document.addEventListener(t, e => e.preventDefault(), { passive: false }));
 window.addEventListener('DOMContentLoaded', () => {
-  buildDust(); initEvents(); applyPrefs(); renderCfg(); renderAll();
+  syncGenres(); buildDust(); initEvents(); applyPrefs(); renderCfg(); renderAll();
   syslog('NERVE NET online', 'ok');
   if (IS_FILE) { syslog('file:// — 埋め込み再生にはWeb配信が必要', 'wr'); $('linkChip').classList.add('warn'); }
   boot();
