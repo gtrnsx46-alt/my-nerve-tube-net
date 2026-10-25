@@ -1,0 +1,2059 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
+<!-- YouTube embed (Error 153 対策): Referer を必ず送る -->
+<meta name="referrer" content="strict-origin-when-cross-origin" />
+<title>My Nerve Tube Net</title>
+<meta name="description" content="お気に入りチャンネルだけを電脳ネットワークとして眺めて再生する、自分専用の動画ハブ。" />
+<!-- ===== Home screen / PWA ===== -->
+<meta name="application-name" content="My Nerve Tube Net" />
+<meta name="apple-mobile-web-app-title" content="Nerve Tube" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="theme-color" content="#010409" />
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png" />
+<link rel="icon" type="image/svg+xml" href="icons/favicon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://i.ytimg.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#010409; --c1:#22e6ff; --c1-dim:rgba(34,230,255,.18); --c1-line:rgba(34,230,255,.32);
+  --c2:#00ffa3; --warn:#ff8a3d; --alert:#ff2e63; --txt:#cfeaf2; --mute:#6b93a2;
+  --panel:rgba(2,10,18,.74); --accent:#22e6ff;
+  --mono:'JetBrains Mono',ui-monospace,monospace; --jp:'Noto Sans JP',sans-serif; --disp:'Orbitron','JetBrains Mono',sans-serif;
+  --sat:env(safe-area-inset-top,0px); --sab:env(safe-area-inset-bottom,0px); --sal:env(safe-area-inset-left,0px); --sar:env(safe-area-inset-right,0px);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;width:100%;background:var(--bg);color:var(--txt);font-family:var(--jp);overflow:hidden;overscroll-behavior:none;touch-action:manipulation;-webkit-text-size-adjust:100%}
+body{position:fixed;inset:0}
+#app{max-width:100vw;overflow:hidden}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:0}
+::selection{background:var(--c1);color:#000}
+
+#net{position:fixed;inset:0;width:100%;height:100%;z-index:0;touch-action:none;cursor:crosshair;display:block}
+#net.grabbing{cursor:grabbing}
+#net.pointing{cursor:pointer}
+.fx-layer{position:fixed;inset:0;pointer-events:none}
+#fxScan{z-index:40;background:repeating-linear-gradient(to bottom,rgba(255,255,255,.022) 0 1px,transparent 1px 3px);mix-blend-mode:overlay}
+#fxVig{z-index:39;background:radial-gradient(ellipse at 50% 50%,transparent 48%,rgba(0,0,0,.72) 100%)}
+#fxSweep{z-index:41;background:linear-gradient(to bottom,transparent,rgba(34,230,255,.05),transparent);height:18vh;animation:sweep 7s linear infinite}
+@keyframes sweep{0%{transform:translateY(-20vh)}100%{transform:translateY(120vh)}}
+body.nofx #fxSweep{display:none}
+
+#app{position:relative;z-index:10;height:100dvh;display:grid;grid-template-rows:auto 1fr auto;pointer-events:none}
+#app > header,#app > footer{pointer-events:auto}
+#app > main{pointer-events:none}
+.frame{position:relative;background:var(--panel);border:1px solid var(--c1-line);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.frame::before,.frame::after{content:"";position:absolute;width:12px;height:12px;border:2px solid var(--c1);pointer-events:none}
+.frame::before{top:-2px;left:-2px;border-right:0;border-bottom:0}
+.frame::after{bottom:-2px;right:-2px;border-left:0;border-top:0}
+.cut{clip-path:polygon(0 0,calc(100% - 14px) 0,100% 14px,100% 100%,14px 100%,0 calc(100% - 14px))}
+.lbl{font-family:var(--mono);font-size:10px;letter-spacing:.18em;color:var(--mute);text-transform:uppercase}
+.lbl b{color:var(--c1);font-weight:700}
+
+/* header */
+header{display:flex;align-items:center;gap:14px;padding:calc(10px + var(--sat)) calc(16px + var(--sar)) 10px calc(16px + var(--sal));border-bottom:1px solid var(--c1-line);background:linear-gradient(to bottom,rgba(1,6,12,.94),rgba(1,6,12,.55))}
+.logo{display:flex;align-items:center;gap:10px;min-width:0}
+.logo img{width:36px;height:36px;flex:none;border-radius:9px;box-shadow:0 0 14px rgba(34,230,255,.35)}
+.logo .t{font-family:var(--disp);font-weight:900;font-size:18px;letter-spacing:.16em;color:#eaffff;position:relative;text-shadow:0 0 12px rgba(34,230,255,.7);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.logo .t small{font-size:.62em;color:var(--c2);letter-spacing:.2em;margin-right:4px}
+.logo .t::before,.logo .t::after{content:attr(data-text);position:absolute;left:0;top:0;width:100%;overflow:hidden;white-space:nowrap}
+.logo .t::before{color:var(--alert);transform:translate(2px,0);clip-path:inset(0 0 100% 0);animation:gl1 6s infinite steps(1)}
+.logo .t::after{color:var(--c2);transform:translate(-2px,0);clip-path:inset(0 0 100% 0);animation:gl2 6s infinite steps(1)}
+@keyframes gl1{0%,92%,100%{clip-path:inset(0 0 100% 0)}93%{clip-path:inset(20% 0 55% 0)}95%{clip-path:inset(65% 0 8% 0)}97%{clip-path:inset(40% 0 40% 0)}}
+@keyframes gl2{0%,93%,100%{clip-path:inset(0 0 100% 0)}94%{clip-path:inset(60% 0 15% 0)}96%{clip-path:inset(10% 0 70% 0)}}
+.logo .s{font-family:var(--mono);font-size:10px;color:var(--mute);letter-spacing:.14em;white-space:nowrap}
+.logo .s em{font-style:normal;color:var(--c2)}
+.chips{display:flex;gap:8px;margin-left:auto;align-items:center}
+.chip{font-family:var(--mono);font-size:10px;letter-spacing:.12em;padding:4px 8px;border:1px solid var(--c1-line);color:var(--c1);background:rgba(34,230,255,.05);white-space:nowrap;display:flex;align-items:center;gap:6px}
+.chip .dot{width:6px;height:6px;border-radius:50%;background:var(--c2);box-shadow:0 0 8px var(--c2);animation:blink 1.4s infinite}
+.chip.warn{color:var(--warn);border-color:rgba(255,138,61,.5)}
+.chip.warn .dot{background:var(--warn);box-shadow:0 0 8px var(--warn)}
+@keyframes blink{50%{opacity:.25}}
+.ibtn{width:36px;height:36px;display:grid;place-items:center;border:1px solid var(--c1-line);color:var(--c1);background:rgba(34,230,255,.05);transition:.2s;flex:none}
+.ibtn:hover{background:var(--c1-dim);box-shadow:0 0 14px rgba(34,230,255,.35)}
+.ibtn svg{width:16px;height:16px}
+.spin{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* main */
+main{display:grid;grid-template-columns:236px minmax(0,1fr) 336px;gap:14px;padding:12px calc(14px + var(--sar)) 12px calc(14px + var(--sal));min-height:0;pointer-events:none}
+main > *{pointer-events:auto;min-width:0}
+#center{pointer-events:none;display:flex;flex-direction:column;min-height:0;gap:10px}
+#center > .pe{pointer-events:auto}
+
+#rail{display:flex;flex-direction:column;min-height:0;padding:12px 10px}
+#rail .head{display:flex;justify-content:space-between;align-items:center;padding:0 4px 8px;border-bottom:1px dashed var(--c1-line);margin-bottom:8px}
+#hubList{overflow-y:auto;flex:1;scrollbar-width:thin;scrollbar-color:var(--c1-line) transparent}
+.hub{width:100%;display:grid;grid-template-columns:4px 1fr auto;gap:9px;align-items:center;text-align:left;padding:7px 6px;margin-bottom:3px;border:1px solid transparent;transition:.18s}
+.hub .bar{height:26px;background:var(--hc);box-shadow:0 0 8px var(--hc)}
+.hub .n{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hub .h{font-family:var(--mono);font-size:9px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hub .c{font-family:var(--mono);font-size:10px;color:var(--mute)}
+.hub .c i{font-style:normal;color:var(--c2);margin-right:4px}
+.hub:hover{background:rgba(34,230,255,.06);border-color:var(--c1-line)}
+.hub.on{background:linear-gradient(90deg,color-mix(in srgb,var(--hc) 22%,transparent),transparent);border-color:var(--hc)}
+.hub.on .c{color:var(--hc)}
+.hub.sector .n{font-family:var(--mono);font-size:11px;letter-spacing:.14em}
+.sep{height:1px;background:var(--c1-line);margin:8px 2px}
+
+#console{padding:12px 14px 10px;max-width:760px;width:100%;margin:0 auto}
+.q-row{display:flex;align-items:center;gap:10px}
+.q-tag{font-family:var(--disp);font-size:11px;font-weight:700;letter-spacing:.2em;color:#001014;background:var(--c1);padding:6px 10px;white-space:nowrap;box-shadow:0 0 16px rgba(34,230,255,.5)}
+#q{flex:1;min-width:0;background:transparent;border:0;border-bottom:1px solid var(--c1-line);outline:none;font-family:var(--mono);font-size:15px;color:#eaffff;padding:6px 2px;caret-color:var(--c2);border-radius:0}
+#q::placeholder{color:#3b6271}
+#q:focus{border-bottom-color:var(--c1)}
+#qClear{font-family:var(--mono);font-size:10px;color:var(--mute);padding:4px 6px;border:1px solid var(--c1-line)}
+#qClear:hover{color:var(--alert);border-color:var(--alert)}
+.q-meta{display:flex;justify-content:space-between;margin-top:7px;gap:10px}
+#qHits{color:var(--c2);white-space:nowrap}
+#deckTitle{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+#tabs{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+.tab{font-family:var(--mono);font-size:11px;padding:6px 12px 6px 10px;border:1px solid var(--c1-line);background:rgba(2,10,18,.75);color:var(--mute);display:flex;gap:7px;align-items:center;transition:.18s;clip-path:polygon(0 0,100% 0,100% 70%,calc(100% - 8px) 100%,0 100%);white-space:nowrap}
+.tab .k{font-size:9px;opacity:.6}
+.tab .ct{font-size:9px;padding:1px 5px;background:rgba(255,255,255,.06)}
+.tab:hover{color:var(--txt);border-color:var(--c1)}
+.tab.on{color:#001014;background:var(--c1);border-color:var(--c1);box-shadow:0 0 18px rgba(34,230,255,.45)}
+.tab.on .ct{background:rgba(0,0,0,.18)}
+
+#stage{flex:1;min-height:0;position:relative;pointer-events:none}
+#matrix{position:absolute;inset:0;display:none;pointer-events:auto;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:0 4px 28px;scrollbar-width:thin;scrollbar-color:var(--c1-line) transparent}
+body.mode-grid #matrix{display:block}
+.mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.mgrid.short{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+.mhead{grid-column:1/-1;display:flex;align-items:center;gap:10px;font-family:var(--disp);font-size:11px;letter-spacing:.24em;color:var(--c1);padding:10px 2px 0}
+.mhead::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--c1-line),transparent)}
+.mhead small{font-family:var(--mono);color:var(--mute);letter-spacing:.1em}
+#msent{text-align:center;padding:18px 0;font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--mute)}
+/* ---- MAGI system bar ---- */
+.magibar{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 10px;margin:0 0 12px;background:rgba(10,4,0,.86);border:1px solid rgba(255,140,26,.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.magibar .ttl{font-family:var(--disp);font-weight:900;letter-spacing:.3em;color:#ff8c1a;font-size:12px;text-shadow:0 0 10px rgba(255,140,26,.6)}
+.magibar .units{display:flex;gap:6px}
+.magibar .units span{font-family:var(--mono);font-size:9px;letter-spacing:.12em;padding:3px 6px;border:1px solid rgba(255,140,26,.5);color:#ffb366;animation:mgblink 2.4s infinite}
+.magibar .units span:nth-child(2){animation-delay:.8s}.magibar .units span:nth-child(3){animation-delay:1.6s}
+@keyframes mgblink{0%,70%,100%{background:transparent}75%{background:rgba(255,140,26,.25)}}
+.magibar .stat{font-family:var(--mono);font-size:10px;color:var(--mute);margin-right:auto}
+.magibar .stat b{color:#ff8c1a;font-weight:700}
+.btn.mg{border-color:rgba(255,140,26,.6);color:#ff8c1a;background:rgba(255,140,26,.08)}
+.btn.mg:hover,.btn.mg.on{background:#ff8c1a;color:#140700}
+/* card MAGI lamps */
+.lamps{display:inline-flex;gap:3px;margin-right:6px;vertical-align:middle}
+.lamps i{font-style:normal;font-family:var(--mono);font-size:8px;width:14px;height:12px;display:grid;place-items:center;border:1px solid rgba(255,140,26,.35);color:rgba(255,140,26,.45)}
+.lamps i.on{background:#ff8c1a;color:#140700;border-color:#ff8c1a}
+.card.unani{border-color:rgba(255,140,26,.75);box-shadow:inset 0 0 0 1px rgba(255,140,26,.35)}
+.card .tg.mg{top:34px;right:6px;background:#ff8c1a;color:#140700;font-weight:700;letter-spacing:.08em}
+/* channel archive bar */
+#chBar{display:none;align-items:center;gap:10px;flex-wrap:wrap;max-width:760px;width:100%;margin:0 auto;padding:7px 12px;border:1px solid var(--c1-line);background:rgba(2,10,18,.8);font-family:var(--mono);font-size:10px;color:var(--mute)}
+#chBar.show{display:flex}
+#chBar b{color:var(--accent);font-weight:700;letter-spacing:.06em}
+#chBar .grow{flex:1;min-width:120px}
+#chBar .btn{padding:6px 10px;min-height:30px;font-size:10px}
+/* PATTERN BLUE alert */
+#pblue{position:fixed;z-index:65;left:50%;top:calc(70px + var(--sat));transform:translateX(-50%);display:none;cursor:pointer;padding:10px 18px;border:2px solid #2f7bff;background:rgba(0,10,40,.92);color:#8fb8ff;font-family:var(--disp);letter-spacing:.2em;font-size:12px;box-shadow:0 0 30px rgba(47,123,255,.6);white-space:nowrap}
+#pblue.show{display:block;animation:pbIn .3s,pbFlash 1s steps(2) 3}
+#pblue small{display:block;font-family:var(--mono);letter-spacing:.1em;font-size:10px;color:#cfe0ff;margin-top:3px}
+@keyframes pbIn{from{opacity:0;transform:translate(-50%,-10px)}}
+@keyframes pbFlash{50%{background:rgba(47,123,255,.45)}}
+/* ---- MAGI deliberation ---- */
+#magiModal .mgwrap{width:min(760px,100%);max-height:100%;overflow-y:auto;padding:16px;background:rgba(8,3,0,.94);border:1px solid rgba(255,140,26,.6)}
+.mg-top{display:flex;justify-content:space-between;align-items:center;gap:10px;font-family:var(--mono);font-size:10px;color:#ffb366;letter-spacing:.14em;border-bottom:1px solid rgba(255,140,26,.35);padding-bottom:8px}
+.mg-top b{font-family:var(--disp);font-size:14px;color:#ff8c1a;letter-spacing:.35em}
+.mg-stage{position:relative;display:grid;grid-template-columns:1fr 1fr;grid-template-areas:"bal bal" "cas mel";gap:16px;margin:18px auto 10px;max-width:560px}
+.mu{position:relative;padding:14px 14px 12px;background:#ff8c1a;color:#1a0800;font-family:var(--mono);min-height:96px;transition:background .25s}
+.mu.bal{grid-area:bal;width:66%;justify-self:center;padding:14px 22px 30px;clip-path:polygon(0 0,100% 0,100% 80%,68% 100%,32% 100%,0 80%)}
+.mu.cas{grid-area:cas;padding-right:30px;clip-path:polygon(0 0,82% 0,100% 26%,100% 100%,0 100%)}
+.mu.mel{grid-area:mel;padding-left:30px;clip-path:polygon(18% 0,100% 0,100% 100%,0 100%,0 26%)}
+.mu .nm{font-family:var(--disp);font-weight:900;font-size:13px;letter-spacing:.18em}
+.mu .rl{font-size:10px;opacity:.75;margin-top:2px}
+.mu .vd{font-family:var(--jp);font-weight:700;font-size:24px;margin-top:8px;letter-spacing:.2em}
+.mu .why{font-size:10px;margin-top:2px;opacity:.85;min-height:1.3em}
+.mu.think{animation:muthink .22s steps(2) infinite}
+@keyframes muthink{50%{background:#a85200}}
+.mu.yes{background:#28f0a0}
+.mu.no{background:#ff3355;color:#fff}
+.mg-core{text-align:center;font-family:var(--disp);letter-spacing:.5em;color:#ff8c1a;font-size:11px;margin-top:-6px}
+.mg-cand{display:grid;grid-template-columns:150px 1fr;gap:12px;align-items:center;border:1px solid rgba(255,140,26,.35);padding:10px;margin-top:12px}
+.mg-cand img{width:100%;aspect-ratio:16/9;object-fit:cover;background:#000}
+.mg-cand .t{font-size:13px;line-height:1.5}
+.mg-cand .m{font-family:var(--mono);font-size:10px;color:#ffb366;margin-top:4px}
+.mg-res{text-align:center;font-family:var(--jp);font-weight:900;font-size:30px;letter-spacing:.4em;margin:14px 0 4px;min-height:1.4em}
+.mg-res.yes{color:#28f0a0;text-shadow:0 0 18px rgba(40,240,160,.6)}
+.mg-res.no{color:#ff3355}
+.mg-log{font-family:var(--mono);font-size:10px;color:#ffb366;height:52px;overflow:hidden;opacity:.8;line-height:1.6}
+.mg-acts{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:10px}
+@media (max-width:600px){
+  .mgrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .mgrid.short{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+  .card .ti{font-size:11px}
+  .card .bd{padding:6px 7px 7px}
+  .card .tg.ch{max-width:58%;font-size:9px}
+  .magibar .units{display:none}
+  .magibar{gap:6px;padding:6px 8px}
+  .magibar .btn{padding:6px 8px;min-height:32px;font-size:10px}
+  .card .mt .pd{display:none}
+  .card .mt .ps{display:inline}
+  .card .mt{align-items:center}
+  .mg-cand{grid-template-columns:110px 1fr}
+  .mu .vd{font-size:19px}
+  .mu .nm{font-size:11px}
+}
+body.mode-grid #net{filter:brightness(.35) blur(1px)}
+#emptyMsg{position:absolute;inset:0;display:none;place-items:center;text-align:center;pointer-events:none}
+#emptyMsg.show{display:grid}
+#emptyMsg .big{font-family:var(--disp);letter-spacing:.3em;color:var(--alert);font-size:14px}
+
+.card{position:relative;display:flex;flex-direction:column;min-height:0;background:rgba(2,10,18,.88);border:1px solid var(--c1-line);cursor:pointer;overflow:hidden;animation:camo .7s cubic-bezier(.16,1,.3,1) backwards;transition:border-color .2s,box-shadow .2s;clip-path:polygon(0 0,calc(100% - 16px) 0,100% 16px,100% 100%,0 100%)}
+/* thermoptic-camouflage reveal */
+@keyframes camo{0%{opacity:0;transform:translateY(8px) scale(.985);filter:blur(5px) saturate(0) brightness(2.2) hue-rotate(90deg);clip-path:polygon(0 0,calc(100% - 16px) 0,100% 0,100% 0,0 0)}45%{opacity:.7;filter:blur(1.5px) saturate(.4) brightness(1.4) hue-rotate(40deg)}100%{opacity:1;transform:none;filter:none;clip-path:polygon(0 0,calc(100% - 16px) 0,100% 16px,100% 100%,0 100%)}}
+.card:hover{border-color:var(--ca);box-shadow:0 0 22px color-mix(in srgb,var(--ca) 40%,transparent)}
+.card .th{position:relative;aspect-ratio:16/9;flex:none;overflow:hidden;background:#000}
+.mgrid.short .card .th{aspect-ratio:9/16}
+.card .th img{width:100%;height:100%;object-fit:cover;filter:saturate(.8) contrast(1.05);transition:transform .5s,filter .3s}
+.card:hover .th img{transform:scale(1.05);filter:saturate(1)}
+.card .th::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(1,6,12,.95),transparent 55%),repeating-linear-gradient(to bottom,rgba(0,0,0,.16) 0 1px,transparent 1px 3px)}
+.card .tg{position:absolute;z-index:2;font-family:var(--mono);font-size:10px;padding:2px 6px;background:rgba(1,6,12,.85)}
+.card .tg.ch{top:8px;left:8px;border-left:3px solid var(--ca);max-width:64%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .tg.du{bottom:8px;right:8px;background:var(--ca);color:#000;font-weight:700}
+.card .tg.dt{bottom:8px;left:8px;color:#d8f1f8}
+.card .tg.nw{top:34px;left:8px;background:var(--warn);color:#000;font-weight:700;letter-spacing:.1em}
+.card .pg{position:absolute;z-index:2;left:0;bottom:0;height:3px;background:var(--ca);box-shadow:0 0 8px var(--ca)}
+.card .st{position:absolute;z-index:3;top:6px;right:6px;width:30px;height:30px;display:grid;place-items:center;background:rgba(1,6,12,.85);border:1px solid var(--c1-line);color:var(--c1);font-size:14px}
+.card .st.on{color:var(--warn);border-color:var(--warn)}
+.card .bd{padding:8px 10px 9px;border-top:1px solid var(--c1-line)}
+.card .ti{font-size:12px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.8em}
+.card .mt{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--mute);margin-top:4px}
+.card .mt b{color:var(--c2);font-weight:500;white-space:nowrap}
+@media (min-width:601px){ .card .mt .ps{display:none} }
+.card.watched{opacity:.55}
+.card.watched .tg.ch::after{content:" ✓";color:var(--c2)}
+
+#inspector{display:flex;flex-direction:column;min-height:0;padding:12px}
+#inspector .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+#insEmpty{flex:1;display:grid;place-items:center;text-align:center;color:var(--mute);font-family:var(--mono);font-size:11px;line-height:1.9}
+#insBody{display:none;flex-direction:column;gap:10px;min-height:0}
+#insBody.show{display:flex}
+#insEmpty.hide{display:none}
+.ins-wrap{display:flex;flex-direction:column;gap:10px}
+.ins-thumb{position:relative;aspect-ratio:16/9;overflow:hidden;cursor:pointer;border:1px solid var(--accent);background:#000}
+.ins-thumb img{width:100%;height:100%;object-fit:cover}
+.ins-thumb::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(to bottom,rgba(0,0,0,.2) 0 1px,transparent 1px 3px),linear-gradient(135deg,color-mix(in srgb,var(--accent) 18%,transparent),transparent 50%)}
+.ins-thumb .pl{position:absolute;z-index:2;inset:0;display:grid;place-items:center}
+.ins-thumb .pl span{width:54px;height:54px;border:2px solid #fff;border-radius:50%;display:grid;place-items:center;background:rgba(0,0,0,.45);transition:.2s}
+.ins-thumb:hover .pl span{background:var(--accent);border-color:var(--accent);box-shadow:0 0 24px var(--accent)}
+.ins-thumb .cor{position:absolute;z-index:2;width:14px;height:14px;border:2px solid var(--accent)}
+.cor.a{top:6px;left:6px;border-right:0;border-bottom:0}.cor.b{top:6px;right:6px;border-left:0;border-bottom:0}.cor.c{bottom:6px;left:6px;border-right:0;border-top:0}.cor.d{bottom:6px;right:6px;border-left:0;border-top:0}
+.ins-thumb .ipg{position:absolute;z-index:3;left:0;bottom:0;height:4px;background:var(--accent);box-shadow:0 0 10px var(--accent)}
+#insCh{font-family:var(--mono);font-size:11px;color:var(--accent);letter-spacing:.06em}
+#insTitle{font-size:14px;font-weight:500;line-height:1.5;margin:0;cursor:pointer}
+#insTitle:hover{color:var(--c1)}
+.kv{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--c1-line);border:1px solid var(--c1-line)}
+.kv div{background:rgba(1,6,12,.9);padding:6px 8px}
+.kv .v{font-family:var(--mono);font-size:12px;color:#eaffff;margin-top:2px}
+.acts{display:grid;grid-template-columns:1fr repeat(4,auto);gap:6px}
+.btn{font-family:var(--mono);font-size:11px;letter-spacing:.08em;padding:9px 11px;border:1px solid var(--c1-line);color:var(--c1);background:rgba(34,230,255,.06);transition:.18s;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;min-height:36px}
+.btn:hover{background:var(--c1-dim);border-color:var(--c1)}
+.btn.pri{background:var(--c1);color:#001014;font-weight:700;border-color:var(--c1);box-shadow:0 0 16px rgba(34,230,255,.45)}
+.btn.pri:hover{background:#7ff3ff}
+.btn.on{color:var(--warn);border-color:var(--warn)}
+.btn.ok{color:var(--c2);border-color:rgba(0,255,163,.5)}
+.btn:disabled{opacity:.35;pointer-events:none}
+#log{margin-top:auto;border-top:1px dashed var(--c1-line);padding-top:8px;font-family:var(--mono);font-size:10px;line-height:1.65;color:var(--mute);height:140px;overflow:hidden;mask-image:linear-gradient(to bottom,#000 60%,transparent);-webkit-mask-image:linear-gradient(to bottom,#000 60%,transparent)}
+#log .ln b{color:var(--c1);font-weight:400}
+#log .ln.ok b{color:var(--c2)}
+#log .ln.wr b{color:var(--warn)}
+
+footer{display:flex;align-items:center;gap:10px;padding:8px calc(14px + var(--sar)) calc(8px + var(--sab)) calc(14px + var(--sal));border-top:1px solid var(--c1-line);background:linear-gradient(to top,rgba(1,6,12,.94),rgba(1,6,12,.55));overflow-x:auto;scrollbar-width:none}
+footer::-webkit-scrollbar{display:none}
+.seg{display:flex;border:1px solid var(--c1-line);flex:none}
+.seg button{font-family:var(--mono);font-size:10px;letter-spacing:.12em;padding:7px 10px;color:var(--mute)}
+.seg button.on{background:var(--c1);color:#001014;font-weight:700}
+.fbtn{font-family:var(--mono);font-size:10px;letter-spacing:.12em;padding:7px 10px;border:1px solid var(--c1-line);color:var(--mute);white-space:nowrap;flex:none}
+.fbtn:hover{color:var(--c1);border-color:var(--c1)}
+.fbtn.on{color:var(--c2);border-color:rgba(0,255,163,.5)}
+.fbtn:disabled{opacity:.3;pointer-events:none}
+select.fsel{font-family:var(--mono);font-size:10px;background:#020a12;border:1px solid var(--c1-line);color:var(--c1);padding:6px;outline:none;flex:none}
+.chk{display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;color:var(--mute);white-space:nowrap;cursor:pointer;flex:none}
+.chk input{accent-color:var(--c1)}
+.pager{display:flex;align-items:center;gap:8px;margin:0 auto;flex:none}
+#pageTxt{font-family:var(--mono);font-size:10px;color:var(--c1);letter-spacing:.12em;white-space:nowrap}
+.eq{display:flex;align-items:flex-end;gap:2px;height:12px;flex:none}
+.eq i{width:2px;background:var(--c2);animation:eq .7s ease-in-out infinite}
+.eq i:nth-child(2){animation-delay:.15s;background:var(--c1)}.eq i:nth-child(3){animation-delay:.3s}
+@keyframes eq{0%,100%{height:3px}50%{height:12px}}
+
+#tip{position:fixed;z-index:30;pointer-events:none;display:none;max-width:300px;padding:8px 10px;background:rgba(1,6,12,.94);border:1px solid var(--tc,var(--c1));font-size:12px;line-height:1.5;box-shadow:0 0 18px rgba(0,0,0,.6)}
+#tip .c{font-family:var(--mono);font-size:9px;color:var(--tc,var(--c1));letter-spacing:.1em;margin-bottom:2px}
+#tip .m{font-family:var(--mono);font-size:9px;color:var(--mute);margin-top:3px}
+
+.modal{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;padding:calc(12px + var(--sat)) 12px calc(12px + var(--sab));background:rgba(0,4,8,.88);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.modal.show{display:flex}
+.pf{width:min(1100px,100%);max-height:100%;display:flex;flex-direction:column;animation:pfIn .35s cubic-bezier(.16,1,.3,1)}
+@keyframes pfIn{from{opacity:0;transform:scaleY(.04)}60%{opacity:1}to{transform:none}}
+.pf-head{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--c1-line)}
+.pf-tag{font-family:var(--disp);font-size:10px;letter-spacing:.2em;padding:4px 8px;background:var(--c2);color:#001a10;font-weight:700;white-space:nowrap}
+#pTitle{font-size:13px;font-weight:500;margin:0;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#pCh{font-family:var(--mono);font-size:10px;color:var(--accent);white-space:nowrap}
+.pf-box{position:relative;width:100%;aspect-ratio:16/9;max-height:70dvh;background:#000;margin:0 auto}
+.pf-box.short{aspect-ratio:9/16;width:auto;height:70dvh;max-width:100%}
+.pf-box iframe,#pMount{width:100%;height:100%;border:0;display:block}
+.pf-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:8px 12px;border-top:1px solid var(--c1-line);font-family:var(--mono);font-size:10px;color:var(--mute)}
+.pf-bar .grp{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+#pResume{color:var(--c2)}
+.ovl{position:absolute;inset:0;z-index:3;display:none;place-items:center;padding:20px;background:rgba(10,2,4,.94);text-align:center}
+.ovl.show{display:grid}
+.ovl .box{max-width:560px;border:1px solid var(--alert);padding:18px 20px;background:rgba(255,46,99,.06)}
+.ovl h3{font-family:var(--disp);color:var(--alert);letter-spacing:.18em;font-size:13px;margin:0 0 10px}
+.ovl p{font-size:12px;line-height:1.8;margin:0 0 10px;text-align:left}
+.ovl code{font-family:var(--mono);background:#000;border:1px solid #333;padding:1px 5px;color:var(--c2)}
+.ovl .row{display:flex;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap}
+
+.cfg{width:min(760px,100%);max-height:100%;display:flex;flex-direction:column}
+.cfg .body{padding:16px;overflow-y:auto;display:flex;flex-direction:column;gap:14px;font-size:12px;-webkit-overflow-scrolling:touch}
+.cfg .blk{border:1px solid var(--c1-line);padding:12px;background:rgba(1,6,12,.6)}
+.cfg p{color:var(--mute);line-height:1.7;margin:6px 0 10px;font-size:11px}
+.inp{width:100%;min-width:0;background:#000;border:1px solid var(--c1-line);padding:9px 10px;font-family:var(--mono);font-size:13px;outline:none;color:#eaffff;border-radius:0}
+.inp:focus{border-color:var(--c1)}
+.row2{display:flex;gap:8px;flex-wrap:wrap}
+.row2 > .inp{flex:1 1 180px}
+.set{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px dashed var(--c1-line)}
+.set:last-child{border-bottom:0}
+.set .d{font-size:11px;color:var(--mute);margin-top:2px}
+input[type=range]{accent-color:var(--c1);width:140px}
+#chList .it{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 6px;border-bottom:1px dashed var(--c1-line)}
+#chList .it .sw{width:10px;height:10px;flex:none}
+#chList .it .meta{font-family:var(--mono);font-size:9px;color:var(--mute);word-break:break-all}
+.del{font-family:var(--mono);font-size:10px;color:var(--alert);border:1px solid rgba(255,46,99,.4);padding:5px 9px;flex:none}
+.keys{display:grid;grid-template-columns:auto 1fr;gap:8px 14px;font-size:12px}
+.keys kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--c1-line);padding:2px 7px;color:var(--c1);background:#000;text-align:center;min-width:34px;display:inline-block}
+
+#toast{position:fixed;z-index:70;bottom:calc(64px + var(--sab));right:16px;display:none;padding:10px 14px;font-family:var(--mono);font-size:11px;color:var(--c1);border:1px solid var(--c1);background:rgba(1,6,12,.95);box-shadow:0 0 22px rgba(34,230,255,.35);max-width:calc(100vw - 32px)}
+#toast.show{display:block;animation:tIn .25s}
+@keyframes tIn{from{opacity:0;transform:translateX(16px)}}
+
+#boot{position:fixed;inset:0;z-index:90;background:#000;display:flex;align-items:center;justify-content:center;transition:opacity .6s}
+#boot.out{opacity:0;pointer-events:none}
+#boot pre{font-family:var(--mono);font-size:12px;line-height:1.8;color:var(--c2);margin:0;min-width:min(520px,90vw);white-space:pre-wrap;padding:0 16px}
+#boot pre .c{color:var(--c1)}
+#boot pre .w{color:var(--warn)}
+
+textarea.inp{resize:vertical;min-height:190px;line-height:1.6;white-space:pre;overflow-x:auto}
+.inav{display:flex;gap:4px}
+.inav button{font-family:var(--mono);font-size:12px;width:34px;height:30px;border:1px solid var(--c1-line);color:var(--c1)}
+.inav button:hover{background:var(--c1-dim)}
+#emptyMsg .btn{pointer-events:auto;margin-top:14px}
+#bulkMsg{white-space:pre-wrap;line-height:1.7;letter-spacing:.04em;text-transform:none}
+@media (max-width:1600px){ .tab .k{display:none} .tab{padding:6px 10px} }
+@media (max-width:1180px){ main{grid-template-columns:200px minmax(0,1fr) 300px} }
+@media (max-width:920px){
+  header{gap:8px}
+  .logo .t{font-size:14px;letter-spacing:.12em}
+  .logo img{width:30px;height:30px}
+  .logo .s,.chip{display:none}
+  .logo{flex:1;min-width:0}
+  main{grid-template-columns:minmax(0,1fr);grid-template-rows:auto 1fr;padding:8px calc(8px + var(--sar)) 8px calc(8px + var(--sal));gap:8px}
+  #rail{padding:6px;grid-row:1}
+  #rail .head{display:none}
+  #hubList{display:flex;overflow-x:auto;overflow-y:hidden;gap:4px;scrollbar-width:none}
+  #hubList::-webkit-scrollbar{display:none}
+  #hubList .sep{display:none}
+  .hub{width:auto;flex:none;grid-template-columns:4px auto auto;margin:0;padding:6px 8px}
+  .hub .h{display:none}
+  .hub .bar{height:18px}
+  #center{grid-row:2}
+  #tabs{flex-wrap:nowrap;justify-content:flex-start;overflow-x:auto;scrollbar-width:none}
+  #tabs::-webkit-scrollbar{display:none}
+  .tab{flex:none;padding:6px 9px;font-size:10px}
+  .tab .k{display:none}
+  #inspector{position:fixed;left:calc(8px + var(--sal));right:calc(8px + var(--sar));bottom:calc(52px + var(--sab));z-index:20;max-height:48dvh;padding:10px;display:none}
+  #inspector.show-m{display:flex}
+  .ins-wrap{display:grid;grid-template-columns:42% 1fr}
+  #log,.kv{display:none}
+  #insTitle{font-size:12px}
+  .acts{grid-template-columns:1fr repeat(4,auto)}
+  .acts .btn{padding:8px 9px}
+  .q-tag{font-size:9px;padding:5px 7px}
+  #q{font-size:16px}
+  .pf-head .btn .t{display:none}
+}
+@media (min-width:921px){ #insClose{display:none} }
+#insPrevN,#insNextN{display:none}
+/* ---- phones & small tablets: player becomes a full-screen sheet ---- */
+@media (max-width:920px), (hover:none) and (max-width:1100px){
+  .inp,select.fsel,#q{font-size:16px}
+  #playerModal{padding:0;align-items:stretch}
+  #playerModal .pf{width:100%;height:100%;max-height:none;border:0;animation:none}
+  #playerModal .pf::before,#playerModal .pf::after{display:none}
+  #playerModal .pf-head{flex-wrap:wrap;padding:calc(8px + var(--sat)) calc(10px + var(--sar)) 8px calc(10px + var(--sal));row-gap:6px}
+  #playerModal #pTitle{order:5;flex-basis:100%;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;font-size:13px;line-height:1.45}
+  #playerModal #pCh{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+  #playerModal .pf-head .btn{min-width:40px;min-height:40px;padding:6px 10px}
+  .pf-box{max-height:none;width:100%}
+  .pf-box.short{height:auto;width:min(100%, calc((100dvh - 230px) * 9 / 16));aspect-ratio:9/16}
+  .pf-bar{margin-top:auto;padding:10px calc(10px + var(--sar)) calc(10px + var(--sab)) calc(10px + var(--sal))}
+  .pf-bar .grp:first-child{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;width:100%}
+  .pf-bar .grp:first-child .btn{min-height:44px;padding:6px 4px;font-size:10px}
+  .pf-bar .grp:last-child{width:100%;justify-content:space-between}
+  #playerModal .pf{display:flex;flex-direction:column;background:#000}
+  #playerModal .pf-box{flex:none;margin:auto 0}
+  .cfg{height:100%}
+}
+@media (hover:none){ #net{cursor:default} }
+@media (prefers-reduced-motion:reduce){ #fxSweep{display:none} }
+</style>
+</head>
+<body class="mode-nerve">
+
+<canvas id="net" aria-label="動画ネットワーク"></canvas>
+<div id="fxVig" class="fx-layer"></div>
+<div id="fxScan" class="fx-layer"></div>
+<div id="fxSweep" class="fx-layer"></div>
+<div id="boot"><pre id="bootTxt"></pre></div>
+
+<div id="app">
+  <header>
+    <div class="logo">
+      <img src="icons/icon-192.png" alt="" onerror="this.style.display='none'" />
+      <div style="min-width:0">
+        <div class="t" data-text="MY NERVE TUBE NET"><small>MY</small>NERVE TUBE NET</div>
+        <div class="s">GHOST ARCHIVE TUNER // <em>電脳動画検索インスタレーション</em></div>
+      </div>
+    </div>
+    <div class="chips">
+      <span class="chip" id="linkChip"><span class="dot"></span><span id="linkTxt">PRESET LINK</span></span>
+      <span class="chip" id="nodeChip">NODES 0</span>
+      <span class="chip" id="clock">--:--:-- JST</span>
+      <button class="ibtn" id="helpBtn" title="ヘルプ・ショートカット (?)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></button>
+      <button class="ibtn" id="syncBtn" title="最新データ同期"><svg id="syncIco" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></button>
+      <button class="ibtn" id="cfgBtn" title="設定"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.2 4.2l2.8 2.8M17 17l2.8 2.8M1 12h4M19 12h4M4.2 19.8 7 17M17 7l2.8-2.8"/></svg></button>
+    </div>
+  </header>
+
+  <main>
+    <aside id="rail" class="frame">
+      <div class="head"><span class="lbl"><b>◢</b> HUB INDEX</span><span class="lbl" id="hubCount">09</span></div>
+      <div id="hubList"></div>
+    </aside>
+
+    <section id="center">
+      <div id="console" class="frame cut pe">
+        <div class="q-row">
+          <span class="q-tag">DIVE QUERY</span>
+          <input id="q" type="search" autocomplete="off" spellcheck="false" enterkeyhint="search" placeholder="キーワードで情報の海から呼び起こす…  [ / ]" />
+          <button id="qClear" title="クリア">CLR</button>
+        </div>
+        <div class="q-meta">
+          <span class="lbl" id="deckTitle">ALL HUBS // LATEST</span>
+          <span class="lbl" id="qHits"></span>
+        </div>
+      </div>
+      <nav id="tabs" class="pe"></nav>
+      <div id="chBar" class="pe"></div>
+      <div id="stage">
+        <div id="matrix"></div>
+        <div id="emptyMsg"><div><div class="big">NO SIGNAL</div><div class="lbl" style="margin-top:8px">該当ノードなし — 別のタブ/ハブを選択</div></div></div>
+      </div>
+    </section>
+
+    <aside id="inspector" class="frame">
+      <div class="head"><span class="lbl"><b>◢</b> NODE INSPECTOR</span><span class="inav"><button id="insPrevN" title="前のノード">‹</button><button id="insNextN" title="次のノード">›</button><button id="insClose" title="閉じる">✕</button></span></div>
+      <div id="insEmpty">ノード未選択<br>カーソル/指を近づけるとノードが拡大<br>ドラッグで回転・ホイール/ピンチで拡大<br>クリックで捕捉 → もう一度で再生<br>六角形のハブでセクター集中</div>
+      <div id="insBody">
+        <div class="ins-wrap">
+          <div class="ins-thumb" id="insThumbBox">
+            <img id="insThumb" alt="" />
+            <i class="cor a"></i><i class="cor b"></i><i class="cor c"></i><i class="cor d"></i>
+            <div class="pl"><span><svg width="18" height="18" viewBox="0 0 24 24" fill="#fff"><polygon points="7 4 20 12 7 20"/></svg></span></div>
+            <div class="ipg" id="insPg" style="width:0"></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
+            <div id="insCh"></div>
+            <h3 id="insTitle"></h3>
+          </div>
+        </div>
+        <div class="kv">
+          <div><div class="lbl">UPLOADED</div><div class="v" id="insDate">-</div></div>
+          <div><div class="lbl">LENGTH</div><div class="v" id="insLen">-</div></div>
+          <div><div class="lbl">VIEWS</div><div class="v" id="insViews">-</div></div>
+          <div><div class="lbl">STATUS</div><div class="v" id="insState">-</div></div>
+        </div>
+        <div class="acts">
+          <button class="btn pri" id="insPlay">▶ 再生</button>
+          <button class="btn" id="insSave" title="ストック (S)">☆</button>
+          <button class="btn" id="insWatch" title="視聴済みにする (W)">✓</button>
+          <button class="btn" id="insShare" title="共有">⇪</button>
+          <a class="btn" id="insYT" target="_blank" rel="noopener" title="YouTubeで開く">YT</a>
+        </div>
+      </div>
+      <div id="log"></div>
+    </aside>
+  </main>
+
+  <footer>
+    <div class="eq"><i></i><i></i><i></i></div>
+    <div class="seg" role="group" aria-label="表示モード">
+      <button id="vNerve" class="on">◉ NERVE</button>
+      <button id="vGrid">⊞ MATRIX</button>
+    </div>
+    <select id="sortSel" class="fsel" aria-label="並び替え">
+      <option value="date">SORT: CHRONO</option>
+      <option value="views">SORT: MASS</option>
+      <option value="duration">SORT: LENGTH</option>
+      <option value="unwatched">SORT: UNREAD</option>
+    </select>
+    <label class="chk"><input type="checkbox" id="hideW" />HIDE WATCHED</label>
+    <div class="pager">
+      <button class="fbtn" id="prevBtn">◀ PREV</button>
+      <span id="pageTxt">CLUSTER 1/1</span>
+      <button class="fbtn" id="nextBtn">NEXT ▶</button>
+    </div>
+    <button class="fbtn" id="labelBtn" title="ラベル表示 (L)">LABEL: AUTO</button>
+    <button class="fbtn" id="tiltBtn" style="display:none">TILT</button>
+    <button class="fbtn" id="pulseBtn">⚡ PULSE</button>
+    <button class="fbtn on" id="rotBtn">AUTO-ROT</button>
+    <button class="fbtn on" id="fxBtn">FX: ON</button>
+  </footer>
+</div>
+
+<div id="tip"></div>
+<div id="pblue"></div>
+<div id="toast"></div>
+
+<!-- ===== PLAYER ===== -->
+<div id="playerModal" class="modal" role="dialog" aria-modal="true">
+  <div class="pf frame">
+    <div class="pf-head">
+      <span class="pf-tag">WIRED LINK</span>
+      <span id="pCh"></span>
+      <h2 id="pTitle"></h2>
+      <button class="btn" id="pSave">☆<span class="t"> STOCK</span></button>
+      <a class="btn" id="pYT" target="_blank" rel="noopener">YT<span class="t">で開く</span>↗</a>
+      <button class="btn" id="pClose" title="閉じる (Esc)">✕</button>
+    </div>
+    <div class="pf-box" id="pBox">
+      <div id="pMount"></div>
+      <div class="ovl" id="pWarn">
+        <div class="box">
+          <h3>⚠ ERROR 153 // REFERRER MISSING</h3>
+          <p>このページは <code>file://</code> で直接開かれているため、YouTube に送る「埋め込み元」が無く、エラー153で停止します。</p>
+          <p>Webサーバー上（GitHub Pages など）に置くか、同梱の <code>start_nerve_net.bat</code> で <code>http://localhost:8000/</code> から開いてください。</p>
+          <div class="row"><a class="btn pri" id="pWarnYT" target="_blank" rel="noopener">YouTubeで開く</a><button class="btn" id="pWarnTry">それでも試す</button></div>
+        </div>
+      </div>
+      <div class="ovl" id="pErr">
+        <div class="box">
+          <h3 id="pErrT">⚠ EMBED BLOCKED</h3>
+          <p id="pErrM">この動画は投稿者によって埋め込み再生が許可されていません。</p>
+          <div class="row"><a class="btn pri" id="pErrYT" target="_blank" rel="noopener">YouTubeで開く</a><button class="btn" id="pErrNext">次の動画へ ▶</button></div>
+        </div>
+      </div>
+    </div>
+    <div class="pf-bar">
+      <div class="grp">
+        <button class="btn" id="pPrev" title="前の動画 (P)">◀ PREV</button>
+        <button class="btn" id="pNext" title="次の動画 (N)">NEXT ▶</button>
+        <button class="btn ok" id="pAuto" title="終了後に次の動画を自動再生">AUTO-NEXT: ON</button>
+        <button class="btn" id="pShare">⇪ 共有</button>
+      </div>
+      <div class="grp"><span id="pResume"></span><span id="pMeta">-</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SETTINGS ===== -->
+<div id="cfgModal" class="modal" role="dialog" aria-modal="true">
+  <div class="cfg frame">
+    <div class="pf-head"><span class="pf-tag" style="background:var(--c1)">CONFIG</span><h2 style="font-size:13px;margin:0;flex:1">設定</h2><button class="btn" id="cfgClose">✕</button></div>
+    <div class="body">
+      <div class="blk">
+        <div style="display:flex;justify-content:space-between;align-items:center"><span class="lbl"><b>◢</b> YouTube Data API v3</span><span class="chip" id="apiState">PRESET+RSS</span></div>
+        <p>APIキーがあると、最新/過去動画・再生数・尺を直接取得し、62秒以下をShortsに自動分類します。起動時に前回同期から3時間以上経っていれば自動で同期します。キーはこの端末のブラウザにのみ保存されます。</p>
+        <div class="row2"><input id="apiKey" class="inp" type="password" placeholder="AIzaSy..." autocomplete="off" /><button class="btn pri" id="apiSave">保存して同期</button></div>
+      </div>
+      <div class="blk">
+        <span class="lbl"><b>◢</b> BULK — チャンネル一括登録 / 書き出し</span>
+        <p>チャンネル一覧をテキストで貼り付けてまとめて登録できます。別の端末に移すときは「書き出し」でコピーしたテキストを、移行先で貼り付けてください。</p>
+        <div class="row2"><button class="btn pri" id="openSetup">一括登録を開く</button><button class="btn" id="copyChannels">チャンネル一覧をコピー</button></div>
+      </div>
+      <div class="blk">
+        <span class="lbl"><b>◢</b> ADD HUB — チャンネル追加</span>
+        <p>チャンネルURL、<code>@ハンドル</code>、または <code>UC...</code> のIDを貼り付け。@ハンドル/URLからの自動解決にはAPIキーが必要です。</p>
+        <div class="row2">
+          <input id="nSrc" class="inp" placeholder="https://www.youtube.com/@xxxx  /  @xxxx  /  UC..." />
+          <input id="nName" class="inp" placeholder="表示名（空欄なら自動）" style="flex:0 1 180px" />
+          <select id="nCat" class="fsel" style="padding:9px"><option value="IDOL">IDOL</option><option value="GAMING">GAME</option><option value="VARIETY" selected>VARIETY</option></select>
+          <button class="btn pri" id="nAdd">追加</button>
+        </div>
+      </div>
+      <div class="blk">
+        <span class="lbl"><b>◢</b> DISPLAY — 表示</span>
+        <div class="set"><div><div>レンズ強度</div><div class="d">カーソル/指の周りのノードを拡大し、周囲を押し退ける強さ</div></div><input type="range" id="sLens" min="0" max="1.5" step="0.1" /></div>
+        <div class="set"><div><div>パララックス</div><div class="d">マウス位置に合わせて球体がわずかに傾く</div></div><input type="checkbox" id="sPar" /></div>
+        <div class="set"><div><div>ラベル表示</div><div class="d">AUTO: 手前と注目ノードだけ / ALL: すべて / OFF: ホバー時のみ</div></div><select id="sLabel" class="fsel"><option value="auto">AUTO</option><option value="all">ALL</option><option value="off">OFF</option></select></div>
+        <div class="set"><div><div>1画面のノード数</div><div class="d">多いほど一覧性UP・少ないほど見やすい</div></div><select id="sDensity" class="fsel"><option value="0.6">少なめ</option><option value="1">標準</option><option value="1.4">多め</option></select></div>
+      </div>
+      <div class="blk">
+        <span class="lbl"><b>◢</b> DATA — バックアップ</span>
+        <p>ストック・視聴履歴・続きから再生の位置・登録チャンネル・表示設定をJSONで書き出し/読み込みできます（APIキーは含みません）。機種変更や別端末への移行に。</p>
+        <div class="row2"><button class="btn" id="expBtn">⇩ 書き出し</button><button class="btn" id="impBtn">⇧ 読み込み</button><input type="file" id="impFile" accept="application/json,.json" hidden /><button class="btn" id="clrHist" style="margin-left:auto;color:var(--alert);border-color:rgba(255,46,99,.4)">履歴を消去</button></div>
+      </div>
+      <div class="blk">
+        <div style="display:flex;justify-content:space-between"><span class="lbl"><b>◢</b> LINKED HUBS</span><button class="lbl" id="resetBtn" style="color:var(--alert)">全チャンネルを削除</button></div>
+        <div id="chList" style="margin-top:6px"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MAGI ===== -->
+<div id="magiModal" class="modal" role="dialog" aria-modal="true">
+  <div class="mgwrap">
+    <div class="mg-top"><b>MAGI</b><span id="mgPhase">SYSTEM STANDBY</span><button class="btn mg" id="mgClose">✕</button></div>
+    <div class="mg-stage">
+      <div class="mu bal" id="mu1"><div class="nm">BALTHASAR·2</div><div class="rl">保護者人格 — 見やすさ・未視聴</div><div class="vd">待機</div><div class="why"></div></div>
+      <div class="mu cas" id="mu2"><div class="nm">CASPER·3</div><div class="rl">直感人格 — 新着・気分</div><div class="vd">待機</div><div class="why"></div></div>
+      <div class="mu mel" id="mu0"><div class="nm">MELCHIOR·1</div><div class="rl">科学者人格 — 再生数・統計</div><div class="vd">待機</div><div class="why"></div></div>
+    </div>
+    <div class="mg-core">— 審 議 —</div>
+    <div class="mg-cand" id="mgCand"></div>
+    <div class="mg-res" id="mgRes"></div>
+    <div class="mg-log" id="mgLog"></div>
+    <div class="mg-acts"><button class="btn pri" id="mgPlay" disabled>▶ 再生する</button><button class="btn mg" id="mgRe">再審議</button></div>
+  </div>
+</div>
+
+<!-- ===== CHANNEL BULK SETUP ===== -->
+<div id="setupModal" class="modal" role="dialog" aria-modal="true">
+  <div class="cfg frame">
+    <div class="pf-head"><span class="pf-tag">LINK SETUP</span><h2 style="font-size:13px;margin:0;flex:1">チャンネル一括登録</h2><button class="btn" id="setupClose">✕</button></div>
+    <div class="body">
+      <p style="margin:0">見たいチャンネルを1行に1つずつ貼り付けてください。登録内容はこの端末のブラウザ内だけに保存され、公開サイトには含まれません。</p>
+      <p style="margin:0">書式：<code>チャンネルID(UC…) または URL / @ハンドル, @ハンドル, 表示名, カテゴリ, 色</code><br>カテゴリは IDOL / GAME / VARIETY。2項目目以降は省略可、<code>#</code> で始まる行は無視されます。</p>
+      <textarea id="bulkTxt" class="inp" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="UCxxxxxxxxxxxxxxxxxxxxxx, @handle, 表示名, IDOL, #FF3E9D"></textarea>
+      <div class="row2" style="align-items:center">
+        <label class="chk"><input type="radio" name="bulkMode" value="replace" checked> 置き換える</label>
+        <label class="chk"><input type="radio" name="bulkMode" value="append"> 今の登録に追加</label>
+      </div>
+      <div>
+        <input id="bulkKey" class="inp" type="password" autocomplete="off" placeholder="（任意）YouTube Data API キー  AIzaSy..." />
+        <p style="margin:6px 0 0">APIキーなし：各チャンネルの最新動画をRSSで取得（再生数・尺は取得不可）。APIキーあり：再生数・尺・Shorts判定まで取得。URLや@ハンドルだけの行はAPIキーが必要です。</p>
+      </div>
+      <div class="row2"><button class="btn pri" id="bulkGo">登録して同期</button><button class="btn" id="bulkCopy">現在の登録をテキストでコピー</button></div>
+      <div id="bulkMsg" class="lbl"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== HELP ===== -->
+<div id="helpModal" class="modal" role="dialog" aria-modal="true">
+  <div class="cfg frame" style="width:min(560px,100%)">
+    <div class="pf-head"><span class="pf-tag" style="background:var(--c1)">MANUAL</span><h2 style="font-size:13px;margin:0;flex:1">操作ガイド</h2><button class="btn" id="helpClose">✕</button></div>
+    <div class="body">
+      <div class="keys">
+        <span><kbd>/</kbd></span><span>検索欄へ</span>
+        <span><kbd>← →</kbd></span><span>前/次のクラスター（ページ）</span>
+        <span><kbd>Space</kbd></span><span>捕捉中の動画を再生</span>
+        <span><kbd>N</kbd> <kbd>P</kbd></span><span>プレイヤーで次/前の動画</span>
+        <span><kbd>S</kbd></span><span>ストック切替</span>
+        <span><kbd>W</kbd></span><span>視聴済み切替</span>
+        <span><kbd>G</kbd></span><span>NERVE / MATRIX 切替</span>
+        <span><kbd>L</kbd></span><span>ラベル表示切替</span>
+        <span><kbd>1</kbd>〜<kbd>8</kbd></span><span>タブ切替</span>
+        <span><kbd>M</kbd></span><span>MAGI 審議（おすすめ動画を3人格の多数決で選ぶ）</span>
+        <span><kbd>Esc</kbd></span><span>閉じる</span>
+      </div>
+      <p>スマホ/タブレット：指を置いた場所の周りが拡大し、ノードが押し退けられます。1本指ドラッグで回転、2本指ピンチで拡大縮小。TILTを有効にすると端末の傾きで球体が動きます。</p>
+      <p>チャンネルを選ぶと上部に「全動画を取得」が出ます（APIキーが必要）。取得後は「全動画」タブとMATRIX表示で、月ごとに全件をスクロールして見られます。</p>
+      <p>MATRIX のカード下の <b style="color:#ff8c1a">M B C</b> は MAGI の3人格の判定です。MELCHIOR＝再生数の統計、BALTHASAR＝未視聴で見やすい尺か、CASPER＝新着・ストック・その日の気分。3つ揃うと「全会一致」。</p>
+      <p>iPhone：Safariの共有ボタン →「ホーム画面に追加」でアプリのように全画面で使えます。</p>
+    </div>
+  </div>
+</div>
+
+<script>
+// =============================================================================
+// 1. DATA
+// =============================================================================
+// チャンネルはコードに含めず、アプリ内の「一括登録」で端末ごとに設定する
+const DEFAULT_CHANNELS = [];
+
+const INITIAL_VIDEOS = [];
+
+const SECTORS = [
+  { key: 'CAT:IDOL', label: '✦ SECTOR IDOL', cat: 'IDOL', accent: '#FF3E9D' },
+  { key: 'CAT:GAMING', label: '◈ SECTOR GAME', cat: 'GAMING', accent: '#3B82F6' },
+  { key: 'CAT:VARIETY', label: '⚡ SECTOR VARIETY', cat: 'VARIETY', accent: '#00F5A0' }
+];
+const TABS = [
+  { key: 'video', label: '最新', k: 'LATEST' },
+  { key: 'archive', label: '全動画', k: 'ARCHIVE' },
+  { key: 'popular', label: '殿堂・人気', k: 'MASS' },
+  { key: 'deep', label: '深層発掘', k: 'RANDOM' },
+  { key: 'marathon', label: '長尺・作業用', k: '28m+' },
+  { key: 'shorts', label: 'Shorts', k: 'PULSE' },
+  { key: 'history', label: '履歴・続き', k: 'TRACE' },
+  { key: 'saved', label: 'ストック', k: 'STOCK' }
+];
+
+// =============================================================================
+// 2. STATE  (storage keys of the previous version are kept)
+// =============================================================================
+const store = {
+  get(k, f) { try { const r = localStorage.getItem(k); return r ? JSON.parse(r) : f; } catch (e) { return f; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { if (!store._warned) { store._warned = true; setTimeout(() => toast('⚠ 端末の保存容量が上限です。一部のデータが保存されていません'), 0); } return false; } }
+};
+const DEFAULT_PREFS = { lens: 1, parallax: true, labels: 'auto', density: 1, autoNext: true, autoRot: true, fx: true };
+const state = {
+  channels: store.get('aether_channels_v1', []),
+  videos: store.get('aether_videos_v1', []),
+  savedIds: store.get('aether_saved_v1', []),
+  watchedIds: store.get('aether_watched_v1', []),
+  history: store.get('aether_history_v1', []),       // [{id, at}]
+  progress: store.get('aether_progress_v1', {}),     // {id: {t, d, at}}
+  apiKey: store.get('aether_yt_api_key_v1', ''),
+  prefs: Object.assign({}, DEFAULT_PREFS, store.get('aether_prefs_v1', {})),
+  prevVisit: store.get('aether_lastvisit_v1', 0),
+  tab: 'video', mode: 'nerve', sel: 'ALL', q: '', sortBy: 'date',
+  hideWatched: false, page: 1, totalPages: 1, seed: 1,
+  inspected: null, playing: null, queue: []
+};
+if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) state.prefs.fx = false;
+store.set('aether_lastvisit_v1', Date.now());
+const savePrefs = () => store.set('aether_prefs_v1', state.prefs);
+const $ = id => document.getElementById(id);
+const isMobile = () => window.innerWidth <= 920;
+const IS_TOUCH = matchMedia('(hover: none)').matches || 'ontouchstart' in window;
+const IN_FRAME = (() => { try { return window.top !== window; } catch (e) { return true; } })();
+const IS_FILE = location.protocol === 'file:';
+
+// =============================================================================
+// 3. HELPERS
+// =============================================================================
+function durMin(d) { if (!d) return 0; const p = String(d).split(':').map(Number); if (p.some(isNaN)) return 0; return p.length === 3 ? p[0] * 60 + p[1] + p[2] / 60 : p.length === 2 ? p[0] + p[1] / 60 : 0; }
+function fmtViews(n) { if (!n) return n === 0 ? '—' : '---'; if (n >= 1e8) return (n / 1e8).toFixed(1).replace(/\.0$/, '') + '億回'; if (n >= 1e4) return (n / 1e4).toFixed(1).replace(/\.0$/, '') + '万回'; return n.toLocaleString() + '回'; }
+function isoToSec(iso) { const m = (iso || '').match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/); return m ? (+m[1] || 0) * 3600 + (+m[2] || 0) * 60 + (+m[3] || 0) : 180; }
+function secToDur(s) { s = Math.floor(s); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return h ? `${h}:${String(m).padStart(2, '0')}:${String(x).padStart(2, '0')}` : `${m}:${String(x).padStart(2, '0')}`; }
+function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function chOf(id) { return state.channels.find(c => c.id === id) || { id, handle: '@node', name: 'Node', fullName: 'Node', accent: '#22e6ff', category: 'VARIETY' }; }
+function hashStr(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+function rng(seed) { return function () { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function hexA(hex, a) { const h = hex.replace('#', ''); const n = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`; }
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const cleanTitle = t => t.replace(/#\S+/g, '').replace(/\s+/g, ' ').trim();
+const vidById = id => state.videos.find(v => v.id === id);
+function pct(id) { const p = state.progress[id]; return p && p.d ? clamp(p.t / p.d, 0, 1) : 0; }
+function pubTime(v) { if (v._t) return v._t; const t = v.pub ? Date.parse(v.pub) : v.date ? Date.parse(v.date + 'T00:00:00+09:00') : 0; Object.defineProperty(v, '_t', { value: t || 0, writable: true, enumerable: false }); return t || 0; }
+function relTime(v) {
+  const t = pubTime(v); if (!t) return '';
+  const d = (Date.now() - t) / 1000;
+  if (d < 0) return '公開予定';
+  if (!v.pub && d < 86400) return '今日';
+  if (d < 3600) return Math.max(1, Math.floor(d / 60)) + '分前';
+  if (d < 86400) return Math.floor(d / 3600) + '時間前';
+  if (d < 86400 * 30) return Math.floor(d / 86400) + '日前';
+  if (d < 86400 * 365) return Math.floor(d / 86400 / 30.4) + 'か月前';
+  return Math.floor(d / 86400 / 365) + '年前';
+}
+function fmtPub(v) { const t = pubTime(v); if (!t) return '-'; if (!v.pub) return v.date; const j = new Date(t + 9 * 3600e3).toISOString(); return j.slice(0, 10) + ' ' + j.slice(11, 16); }
+function monthOf(v) { const t = pubTime(v); if (!t) return 'UNKNOWN'; const j = new Date(t + 9 * 3600e3).toISOString(); return `${j.slice(0, 4)}.${j.slice(5, 7)}`; }
+function isNew(v) {
+  if (!v.date || state.watchedIds.includes(v.id) || state.progress[v.id]) return false;
+  const t = pubTime(v);
+  return Date.now() - t < 4 * 864e5 || (state.prevVisit && t > state.prevVisit - 864e5);
+}
+function vibrate(ms) { try { navigator.vibrate && navigator.vibrate(ms); } catch (e) {} }
+
+function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 3000); }
+function syslog(msg, cls = '') {
+  const el = $('log'); const ln = document.createElement('div'); ln.className = 'ln ' + cls;
+  ln.innerHTML = `<b>${new Date().toTimeString().slice(0, 8)}</b> ${esc(msg)}`;
+  el.prepend(ln); while (el.children.length > 30) el.lastChild.remove();
+}
+function setAccent(c) {
+  if (!c) {
+    c = '#22e6ff';
+    const sec = SECTORS.find(s => s.key === state.sel);
+    if (sec) c = sec.accent; else if (state.sel !== 'ALL') c = chOf(state.sel).accent || c;
+  }
+  document.documentElement.style.setProperty('--accent', c);
+}
+
+// =============================================================================
+// 4. FILTER / SORT
+// =============================================================================
+function passChannel(v) {
+  if (state.sel === 'ALL') return true;
+  if (state.sel.startsWith('CAT:')) return chOf(v.channelId).category === state.sel.slice(4);
+  return v.channelId === state.sel;
+}
+function histAt(id) { const h = state.history.find(x => x.id === id); return h ? h.at : 0; }
+function passTab(v, tab = state.tab) {
+  if (tab === 'shorts') return v.isShort;
+  if (tab === 'saved') return state.savedIds.includes(v.id);
+  if (tab === 'history') return !!histAt(v.id);
+  if (tab === 'archive') return true;
+  if (v.isShort) return false;
+  if (tab === 'marathon') return durMin(v.duration) >= 28;
+  return true;
+}
+function matchQ(v) {
+  const q = state.q.trim().toLowerCase(); if (!q) return true;
+  const c = chOf(v.channelId);
+  return q.split(/\s+/).every(w => v.title.toLowerCase().includes(w) || c.name.toLowerCase().includes(w) || c.handle.toLowerCase().includes(w));
+}
+function getList(applySearch) {
+  const known = new Set(state.channels.map(c => c.id));
+  const list = state.videos.filter(v => known.has(v.channelId) && passTab(v) && passChannel(v)
+    && !(state.hideWatched && state.tab !== 'history' && state.watchedIds.includes(v.id)) && (!applySearch || matchQ(v)));
+  const key = state.tab === 'popular' ? 'views' : state.tab === 'marathon' ? 'duration' : state.tab === 'deep' ? 'deep' : state.tab === 'history' ? 'hist' : state.sortBy;
+  state.sortKey = key;
+  if (state.magiOnly && state.mode === 'grid') { const ctx = magiContext(list); return list.filter(v => magiVotes(v, ctx).every(Boolean)).sort((a, b) => pubTime(b) - pubTime(a)); }
+  return list.sort((a, b) => {
+    if (key === 'hist') return histAt(b.id) - histAt(a.id);
+    if (key === 'views') return (b.views || 0) - (a.views || 0);
+    if (key === 'duration') return durMin(b.duration) - durMin(a.duration);
+    if (key === 'deep') return hashStr(a.id + state.seed) - hashStr(b.id + state.seed);
+    if (key === 'unwatched') { const d = state.watchedIds.includes(a.id) - state.watchedIds.includes(b.id); if (d) return d; }
+    return pubTime(b) - pubTime(a);
+  });
+}
+
+// =============================================================================
+// 5. NERVE NET ENGINE  — 3D sphere + lens field + pointer physics
+// =============================================================================
+const canvas = $('net');
+const ctx = canvas.getContext('2d');
+const D = 3.2;
+const net = {
+  w: 0, h: 0, dpr: 1, cx: 0, cy: 0, R: 200, scaleR: 1, rightEdge: 0,
+  yaw: 0.6, pitch: -0.3, tYaw: null, tPitch: null, vYaw: 0, vPitch: 0, zoom: 1, tZoom: 1,
+  hubs: [], vids: [], links: [], dust: [], dustLinks: [], pulses: [], ripples: [], rings: [], order: [],
+  drag: null, hover: null, tick: 0, cyw: 1, syw: 0, cpt: 1, spt: 0,
+  ptr: { x: -9999, y: -9999, active: false, str: 0, type: 'mouse' },
+  par: { x: 0, y: 0 }, gyro: null, pointers: new Map(), pinch: null
+};
+const thumbs = {};
+function thumb(id) { if (!thumbs[id]) { const im = new Image(); im.decoding = 'async'; im.src = `https://i.ytimg.com/vi/${id}/mqdefault.jpg`; thumbs[id] = im; } return thumbs[id]; }
+
+function resize() {
+  net.dpr = Math.min(window.devicePixelRatio || 1, 2);
+  net.w = window.innerWidth; net.h = window.innerHeight;
+  canvas.width = net.w * net.dpr; canvas.height = net.h * net.dpr;
+  ctx.setTransform(net.dpr, 0, 0, net.dpr, 0, 0);
+  const st = $('stage').getBoundingClientRect(), ins = $('inspector').getBoundingClientRect();
+  net.cx = st.left + st.width / 2; net.cy = st.top + st.height / 2;
+  net.R = Math.max(110, Math.min(st.width, st.height) * 0.4);
+  net.scaleR = clamp(Math.min(st.width, st.height) / 560, 0.7, 1.3);
+  net.rightEdge = isMobile() ? net.w : ins.left;
+}
+function fib(i, n) { const y = 1 - (i + 0.5) / n * 2, r = Math.sqrt(1 - y * y), th = i * Math.PI * (3 - Math.sqrt(5)); return [Math.cos(th) * r, y, Math.sin(th) * r]; }
+function norm(v) { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; }
+
+function buildDust() {
+  const r = rng(42); net.dust = [];
+  for (let i = 0; i < 240; i++) { const d = norm([r() * 2 - 1, r() * 2 - 1, r() * 2 - 1]); const rad = 0.35 + Math.pow(r(), 0.6) * 1.3; net.dust.push({ x: d[0] * rad, y: d[1] * rad, z: d[2] * rad, tw: r() * 6.28 }); }
+  net.dustLinks = [];
+  for (let i = 0; i < net.dust.length && net.dustLinks.length < 340; i++) for (let j = i + 1; j < net.dust.length; j++) { const a = net.dust[i], b = net.dust[j]; if (Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z) < 0.26) net.dustLinks.push([a, b]); }
+  net.rings = [];
+  const ring = fn => { const p = []; for (let k = 0; k <= 72; k++) p.push(fn(k / 72 * Math.PI * 2)); return p; };
+  [-0.55, 0, 0.55].forEach(lat => { const rr = Math.cos(lat), y = Math.sin(lat); net.rings.push(ring(t => [Math.cos(t) * rr * 1.2, y * 1.2, Math.sin(t) * rr * 1.2])); });
+  [0, Math.PI / 3, Math.PI * 2 / 3].forEach(lon => net.rings.push(ring(t => [Math.cos(t) * Math.cos(lon) * 1.2, Math.sin(t) * 1.2, Math.cos(t) * Math.sin(lon) * 1.2])));
+}
+
+function newBody(o) { return Object.assign({ ox: 0, oy: 0, vx: 0, vy: 0, lens: 0 }, o); }
+function buildNet(items) {
+  const chIds = [...new Set(items.map(v => v.channelId))];
+  let hubChs = state.channels.filter(c => chIds.includes(c.id));
+  if (!state.sel.startsWith('CAT:') && state.sel !== 'ALL') hubChs = state.channels.filter(c => c.id === state.sel);
+  const single = hubChs.length === 1;
+  const cnt = {}; items.forEach(v => cnt[v.channelId] = (cnt[v.channelId] || 0) + 1);
+  net.hubs = hubChs.map((c, i) => {
+    const p = single ? [0, 0, 0] : fib(i, hubChs.length).map(x => x * 0.74);
+    return newBody({ type: 'hub', id: 'HUB_' + c.id, ch: c, channelId: c.id, accent: c.accent || '#22e6ff', x: p[0], y: p[1], z: p[2], r: single ? 30 : 20, phase: i, count: cnt[c.id] || 0 });
+  });
+  const hubMap = Object.fromEntries(net.hubs.map(h => [h.channelId, h])), idx = {};
+  net.vids = items.map((v, i) => {
+    const hub = hubMap[v.channelId], r = rng(hashStr(v.id));
+    let pos;
+    if (single || !hub) pos = fib(i, items.length).map(x => x * (1.02 + (r() - 0.5) * 0.14));
+    else {
+      const k = idx[v.channelId] = (idx[v.channelId] || 0) + 1, hd = norm([hub.x, hub.y, hub.z]);
+      const up = Math.abs(hd[1]) > 0.9 ? [1, 0, 0] : [0, 1, 0];
+      const t1 = norm([up[1] * hd[2] - up[2] * hd[1], up[2] * hd[0] - up[0] * hd[2], up[0] * hd[1] - up[1] * hd[0]]);
+      const t2 = [hd[1] * t1[2] - hd[2] * t1[1], hd[2] * t1[0] - hd[0] * t1[2], hd[0] * t1[1] - hd[1] * t1[0]];
+      const ang = k * 2.39996 + r() * 0.4, sp = 0.24 + Math.sqrt(k) * 0.15;
+      const d = norm([0, 1, 2].map(j => hd[j] + (t1[j] * Math.cos(ang) + t2[j] * Math.sin(ang)) * sp));
+      const rad = 1.04 + (r() - 0.5) * 0.14; pos = d.map(x => x * rad);
+    }
+    const vf = clamp((Math.log10(Math.max(1000, v.views || 1000)) - 4) / 2.8, 0, 1);
+    thumb(v.id);
+    return newBody({ type: 'vid', id: v.id, video: v, title: cleanTitle(v.title), channelId: v.channelId, accent: chOf(v.channelId).accent || '#22e6ff', x: pos[0], y: pos[1], z: pos[2], vf, phase: r() * 6.28, match: true, wrap: null });
+  });
+  net.links = [];
+  net.hubs.forEach(a => net.hubs.filter(b => b !== a).map(b => [b, Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z)]).sort((p, q) => p[1] - q[1]).slice(0, 2)
+    .forEach(([b]) => { if (!net.links.some(l => l.a === b && l.b === a)) net.links.push({ a, b, kind: 'bb' }); }));
+  net.vids.forEach(v => { const h = hubMap[v.channelId]; if (h) net.links.push({ a: h, b: v, kind: 'syn' }); });
+  for (let i = 0; i + 1 < net.vids.length; i += 3) { const a = net.vids[i], b = net.vids[(i * 7 + 5) % net.vids.length]; if (a !== b && a.channelId !== b.channelId) net.links.push({ a, b, kind: 'x' }); }
+  net.pulses = []; for (let i = 0; i < Math.min(60, net.links.length * 1.5); i++) spawnPulse();
+  net.vids.forEach(n => n.match = matchQ(n.video));
+  $('nodeChip').textContent = `NODES ${net.vids.length} / SYN ${net.links.length}`;
+}
+function spawnPulse() { if (!net.links.length) return; net.pulses.push({ l: net.links[Math.floor(Math.random() * net.links.length)], t: Math.random(), sp: 0.004 + Math.random() * 0.012, rev: Math.random() < 0.5 }); }
+
+function project(x, y, z) {
+  const x1 = x * net.cyw + z * net.syw, z1 = -x * net.syw + z * net.cyw;
+  const y2 = y * net.cpt - z1 * net.spt, z2 = y * net.spt + z1 * net.cpt;
+  const k = D / (D - z2);
+  return { x: net.cx + x1 * net.R * k * net.zoom, y: net.cy - y2 * net.R * k * net.zoom, z: z2, k };
+}
+function focusNode(n) {
+  if (!n || (n.x === 0 && n.y === 0 && n.z === 0)) return;
+  let a = Math.atan2(-n.x, n.z); const b = Math.atan2(n.y, Math.hypot(n.x, n.z));
+  while (a - net.yaw > Math.PI) a -= Math.PI * 2; while (a - net.yaw < -Math.PI) a += Math.PI * 2;
+  net.tYaw = a; net.tPitch = b; net.tZoom = Math.max(net.tZoom, 1.15);
+}
+
+// lens + spring displacement in screen space
+const LENS = () => ({ R: (net.ptr.type === 'mouse' ? 230 : 180) * clamp(net.scaleR, .8, 1.2), PUSH: 74 * state.prefs.lens, MAG: 1.7 * state.prefs.lens });
+function settle(n, base, L) {
+  const front = clamp((base.z + 0.35) / 1.35, 0, 1);
+  let tx = 0, ty = 0, f = 0;
+  const s = net.ptr.str * (net.drag && net.drag.moved && net.ptr.type === 'mouse' ? 0.3 : 1);
+  if (s > 0.01 && L.MAG > 0) {
+    const dx = base.x - net.ptr.x, dy = base.y - net.ptr.y, d = Math.hypot(dx, dy) || 0.001;
+    if (d < L.R) { const u = d / L.R; f = Math.pow(1 - u, 1.6) * (0.35 + 0.65 * front) * s; const disp = Math.sin(Math.PI * u) * L.PUSH * front * s * (n.type === 'hub' ? 0.45 : 1); tx = dx / d * disp; ty = dy / d * disp; }
+  }
+  n.vx = (n.vx + (tx - n.ox) * 0.12) * 0.76; n.vy = (n.vy + (ty - n.oy) * 0.12) * 0.76;
+  n.ox += n.vx; n.oy += n.vy; n.lens += (f - n.lens) * 0.18;
+  n.p = { x: base.x + n.ox, y: base.y + n.oy, z: base.z, k: base.k, front, mag: 1 + L.MAG * n.lens };
+}
+function kick(x, y, power) {
+  [...net.vids, ...net.hubs].forEach(n => { if (!n.p) return; const dx = n.p.x - x, dy = n.p.y - y, d = Math.hypot(dx, dy) || 1; if (d < 300) { const f = (1 - d / 300) * power; n.vx += dx / d * f; n.vy += dy / d * f; } });
+  net.ripples.push({ x, y, r: 6, a: 0.6 });
+}
+
+// phones/tablets: push overlapping front cards apart so each one can be tapped
+function separate() {
+  const cs = net.vids.filter(n => n.g && !n.g.dot && n.p.z > -0.25);
+  cs.forEach(n => { n.sx = (n.sx || 0) * 0.9; n.sy = (n.sy || 0) * 0.9; n.g.x += n.sx; n.g.y += n.sy; });
+  const gap = 8;
+  for (let i = 0; i < cs.length; i++) for (let j = i + 1; j < cs.length; j++) {
+    const a = cs[i].g, b = cs[j].g;
+    const ox = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x) + gap, oy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y) + gap;
+    if (ox > 0 && oy > 0) {
+      if (ox < oy) { const d = (a.x + a.w / 2) < (b.x + b.w / 2) ? -1 : 1; cs[i].sx += d * ox * 0.22; cs[j].sx -= d * ox * 0.22; }
+      else { const d = (a.y + a.h / 2) < (b.y + b.h / 2) ? -1 : 1; cs[i].sy += d * oy * 0.22; cs[j].sy -= d * oy * 0.22; }
+    }
+  }
+  cs.forEach(n => { n.p.x += n.sx; n.p.y += n.sy; });
+}
+// geometry of a video card for the current frame
+function cardGeom(n) {
+  const p = n.p;
+  if (p.z < -0.38) return { dot: true, x: p.x, y: p.y, r: 2.2 + n.vf * 1.6 };
+  const w = (46 + n.vf * 24) * Math.max(net.scaleR, isMobile() ? 0.95 : 0) * p.k * net.zoom * p.mag * (isMobile() ? 1.12 : 1);
+  const h = w * 9 / 16;
+  return { dot: false, x: p.x - w / 2, y: p.y - h / 2, w, h };
+}
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+function drawHex(x, y, r, rot) { ctx.beginPath(); for (let i = 0; i < 6; i++) { const a = rot + i * Math.PI / 3; ctx[i ? 'lineTo' : 'moveTo'](x + Math.cos(a) * r, y + Math.sin(a) * r); } ctx.closePath(); }
+
+function pick(mx, my, touch) {
+  if (touch) {
+    let best = null, bd = 1e9;
+    for (const n of net.order) {
+      if (n.type === 'hub') { const r = n.r * n.p.k * net.scaleR * net.zoom * n.p.mag + 14; const d = Math.hypot(mx - n.p.x, my - n.p.y); if (d < r && d / r < bd) { bd = d / r; best = n; } continue; }
+      const g = n.g; if (!g || g.dot || n.p.z < -0.2) continue;
+      const cx = g.x + g.w / 2, cy = g.y + g.h / 2, hw = g.w / 2 + 16, hh = g.h / 2 + 16;
+      const dx = Math.abs(mx - cx) / hw, dy = Math.abs(my - cy) / hh;
+      if (dx < 1 && dy < 1) { const d = Math.hypot(dx, dy) - n.p.z * 0.05; if (d < bd) { bd = d; best = n; } }
+    }
+    return best;
+  }
+  for (let i = net.order.length - 1; i >= 0; i--) {
+    const n = net.order[i];
+    if (n.type === 'hub') { const r = n.r * n.p.k * net.scaleR * net.zoom * n.p.mag + 8; if (Math.hypot(mx - n.p.x, my - n.p.y) < r) return n; continue; }
+    const g = n.g; if (!g) continue;
+    const pad = IS_TOUCH ? 10 : 4;
+    if (g.dot) { if (Math.hypot(mx - g.x, my - g.y) < 10) return n; }
+    else if (mx > g.x - pad && mx < g.x + g.w + pad && my > g.y - pad && my < g.y + g.h + pad) return n;
+  }
+  return null;
+}
+
+function wrapTitle(n, maxW, fs) {
+  const key = (maxW | 0) + ':' + (fs | 0);
+  if (n.wrap && n.wrap.key === key) return n.wrap;
+  ctx.font = `500 ${fs}px "Noto Sans JP", sans-serif`;
+  const lines = []; let line = '';
+  for (const ch of Array.from(n.title)) {
+    if (ctx.measureText(line + ch).width > maxW) { lines.push(line); line = ch; if (lines.length === 2) break; } else line += ch;
+  }
+  if (lines.length < 2 && line) lines.push(line);
+  else if (lines.length === 2 && line) lines[1] = lines[1].slice(0, -1) + '…';
+  const w = Math.max(...lines.map(l => ctx.measureText(l).width));
+  n.wrap = { key, lines, w };
+  return n.wrap;
+}
+
+function frame() {
+  requestAnimationFrame(frame);
+  if (document.hidden) return;
+  net.tick++; const T = state.prefs.fx ? net.tick : 0;
+  // camera
+  if (!net.drag && !net.pinch) {
+    if (net.tYaw !== null) {
+      net.yaw += (net.tYaw - net.yaw) * 0.075; net.pitch += (net.tPitch - net.pitch) * 0.075;
+      if (Math.abs(net.tYaw - net.yaw) < 0.002 && Math.abs(net.tPitch - net.pitch) < 0.002) { net.tYaw = net.tPitch = null; }
+    } else {
+      net.yaw += net.vYaw; net.pitch += net.vPitch; net.vYaw *= 0.95; net.vPitch *= 0.95;
+      if (state.prefs.autoRot && state.prefs.fx && !state.inspected && net.ptr.str < 0.5) net.yaw += 0.0015;
+    }
+  }
+  net.pitch = clamp(net.pitch, -1.35, 1.35);
+  net.zoom += (net.tZoom - net.zoom) * 0.08;
+  net.ptr.str += ((net.ptr.active && state.mode === 'nerve' ? 1 : 0) - net.ptr.str) * 0.12;
+  // parallax (mouse position or device tilt)
+  let px = 0, py = 0;
+  if (net.gyro) { px = net.gyro.x; py = net.gyro.y; }
+  else if (state.prefs.parallax && net.ptr.type === 'mouse' && net.ptr.active && !net.drag) { px = clamp((net.ptr.x - net.cx) / (net.w / 2), -1, 1); py = clamp((net.ptr.y - net.cy) / (net.h / 2), -1, 1); }
+  net.par.x += (px - net.par.x) * 0.05; net.par.y += (py - net.par.y) * 0.05;
+  const yawE = net.yaw + net.par.x * 0.38, pitE = net.pitch + net.par.y * 0.26;
+  net.cyw = Math.cos(yawE); net.syw = Math.sin(yawE); net.cpt = Math.cos(pitE); net.spt = Math.sin(pitE);
+
+  const { w, h, cx, cy, R } = net;
+  ctx.clearRect(0, 0, w, h);
+  const bg = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) * 0.7);
+  bg.addColorStop(0, 'rgba(6,40,56,.55)'); bg.addColorStop(0.45, 'rgba(2,14,24,.4)'); bg.addColorStop(1, 'rgba(1,4,9,1)');
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
+
+  // HUD rings
+  const hr = R * net.zoom * 1.45;
+  ctx.save(); ctx.translate(cx + net.par.x * -10, cy + net.par.y * -10);
+  ctx.strokeStyle = 'rgba(34,230,255,.10)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(0, 0, hr, 0, Math.PI * 2); ctx.stroke();
+  ctx.setLineDash([2, 10]); ctx.beginPath(); ctx.arc(0, 0, hr * 1.12, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+  ctx.rotate(T * 0.0012);
+  for (let i = 0; i < 120; i++) { const a = i / 120 * Math.PI * 2, L = i % 10 === 0 ? 10 : 4; ctx.strokeStyle = i % 10 === 0 ? 'rgba(34,230,255,.42)' : 'rgba(34,230,255,.14)'; ctx.beginPath(); ctx.moveTo(Math.cos(a) * hr, Math.sin(a) * hr); ctx.lineTo(Math.cos(a) * (hr - L), Math.sin(a) * (hr - L)); ctx.stroke(); }
+  ctx.strokeStyle = 'rgba(0,255,163,.5)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(0, 0, hr + 4, 0, 0.6); ctx.stroke(); ctx.beginPath(); ctx.arc(0, 0, hr + 4, Math.PI, Math.PI + 0.25); ctx.stroke();
+  ctx.rotate(-T * 0.0035); ctx.strokeStyle = 'rgba(34,230,255,.32)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(0, 0, hr * 1.12 + 6, 0.2, 1.1); ctx.stroke(); ctx.beginPath(); ctx.arc(0, 0, hr * 1.12 + 6, 2.4, 2.7); ctx.stroke();
+  ctx.restore();
+  if (!isMobile()) {
+    ctx.font = '500 9px "JetBrains Mono", monospace'; ctx.fillStyle = 'rgba(34,230,255,.5)'; ctx.textAlign = 'left';
+    ctx.fillText(`YAW ${(((yawE * 57.3) % 360 + 360) % 360).toFixed(1)}°  PITCH ${(pitE * 57.3).toFixed(1)}°  ZOOM ${net.zoom.toFixed(2)}  LENS ${net.ptr.str > .5 ? 'ENGAGED' : 'IDLE'}`, cx - hr, cy + hr + 22);
+  }
+
+  // globe wireframe
+  ctx.lineWidth = 1;
+  net.rings.forEach(pts => { let prev = null; pts.forEach(p => { const q = project(p[0], p[1], p[2]); if (prev) { ctx.strokeStyle = `rgba(34,230,255,${0.025 + Math.max(0, (q.z + 1.2) / 2.4) * 0.08})`; ctx.beginPath(); ctx.moveTo(prev.x, prev.y); ctx.lineTo(q.x, q.y); ctx.stroke(); } prev = q; }); });
+
+  // dust (information sea) — also reacts to the pointer a little
+  const L = LENS();
+  net.dust.forEach(d => {
+    const p = project(d.x, d.y, d.z);
+    if (net.ptr.str > 0.01) { const dx = p.x - net.ptr.x, dy = p.y - net.ptr.y, dd = Math.hypot(dx, dy) || 1; if (dd < L.R) { const s = Math.sin(Math.PI * dd / L.R) * 26 * net.ptr.str * state.prefs.lens; p.x += dx / dd * s; p.y += dy / dd * s; } }
+    d.p = p;
+  });
+  ctx.lineWidth = 0.6;
+  net.dustLinks.forEach(([a, b]) => { ctx.strokeStyle = `rgba(34,230,255,${0.03 + Math.max(0, (a.p.z + b.p.z + 2) / 4) * 0.07})`; ctx.beginPath(); ctx.moveTo(a.p.x, a.p.y); ctx.lineTo(b.p.x, b.p.y); ctx.stroke(); });
+  net.dust.forEach(d => { const tw = state.prefs.fx ? (Math.sin(T * 0.04 + d.tw) + 1) / 2 : 0.5; const al = (0.15 + Math.max(0, (d.p.z + 1.5) / 3) * 0.6) * (0.5 + tw * 0.5); ctx.fillStyle = d.tw > 5.4 ? `rgba(0,255,163,${al})` : `rgba(160,240,255,${al})`; const s = 1.2 * d.p.k; ctx.fillRect(d.p.x - s / 2, d.p.y - s / 2, s, s); });
+
+  // nodes: project + lens/spring
+  const nodes = [...net.hubs, ...net.vids];
+  nodes.forEach(n => settle(n, project(n.x, n.y, n.z), L));
+  net.vids.forEach(n => n.g = cardGeom(n));
+  if (IS_TOUCH || isMobile()) separate();
+  const q = state.q.trim();
+  const dim = n => (q && n.type === 'vid' && !n.match) ? 0.13 : 1;
+  const dA = z => 0.3 + clamp((z + 1.2) / 2.4, 0, 1) * 0.7;
+
+  // wired cables from ceiling (World Tree)
+  net.hubs.forEach((hb, i) => {
+    const p = hb.p, sx = p.x + Math.sin(i * 1.7) * 140;
+    const g = ctx.createLinearGradient(0, 0, 0, Math.max(1, p.y)); g.addColorStop(0, 'rgba(34,230,255,0)'); g.addColorStop(1, hexA(hb.accent, 0.16 * dA(p.z)));
+    ctx.strokeStyle = g; ctx.lineWidth = 1;
+    for (let c = 0; c < 3; c++) { ctx.beginPath(); ctx.moveTo(sx + c * 7 - 7, -10); ctx.bezierCurveTo(sx + c * 9, p.y * 0.35, p.x + (c - 1) * 18, p.y * 0.6, p.x + (c - 1) * 3, p.y); ctx.stroke(); }
+  });
+
+  // links
+  net.links.forEach(l => {
+    const a = l.a.p, b = l.b.p;
+    const hl = net.hover === l.a || net.hover === l.b || (state.inspected && (l.b.id === state.inspected || l.a.id === state.inspected));
+    const al = dA((a.z + b.z) / 2) * Math.min(dim(l.a), dim(l.b));
+    ctx.setLineDash(l.kind === 'x' ? [2, 5] : []);
+    if (l.kind === 'bb') { ctx.strokeStyle = `rgba(34,230,255,${0.3 * al})`; ctx.lineWidth = 1.3; }
+    else if (l.kind === 'x') { ctx.strokeStyle = `rgba(0,255,163,${0.1 * al})`; ctx.lineWidth = 0.8; }
+    else { ctx.strokeStyle = hexA(l.b.accent, (hl ? 0.95 : 0.26) * al); ctx.lineWidth = hl ? 2 : 0.9; }
+    const mx = (a.x + b.x) / 2 + (a.y - b.y) * 0.08, my = (a.y + b.y) / 2 + (b.x - a.x) * 0.08;
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.quadraticCurveTo(mx, my, b.x, b.y); ctx.stroke();
+  });
+  ctx.setLineDash([]);
+
+  // pulses
+  if (state.prefs.fx) net.pulses.forEach(pu => {
+    pu.t += pu.sp; if (pu.t > 1) { pu.t = 0; pu.rev = !pu.rev; }
+    const A = pu.l.a.p, B = pu.l.b.p, mx = (A.x + B.x) / 2 + (A.y - B.y) * 0.08, my = (A.y + B.y) / 2 + (B.x - A.x) * 0.08;
+    const t = pu.rev ? 1 - pu.t : pu.t;
+    const x = (1 - t) * (1 - t) * A.x + 2 * (1 - t) * t * mx + t * t * B.x, y = (1 - t) * (1 - t) * A.y + 2 * (1 - t) * t * my + t * t * B.y;
+    const col = (pu.rev ? pu.l.a : pu.l.b).accent, al = dA((A.z + B.z) / 2) * Math.min(dim(pu.l.a), dim(pu.l.b));
+    ctx.fillStyle = hexA(col, al); ctx.shadowColor = col; ctx.shadowBlur = 8;
+    ctx.beginPath(); ctx.arc(x, y, 1.8 * A.k, 0, Math.PI * 2); ctx.fill();
+  });
+  ctx.shadowBlur = 0;
+
+  // nodes (depth sorted; lens-magnified nodes come to the front)
+  net.order = nodes.sort((a, b) => (a.p.z + a.lens * 2) - (b.p.z + b.lens * 2));
+  net.order.forEach(n => n.type === 'hub' ? drawHub(n, dA(n.p.z)) : drawVid(n, dA(n.p.z) * dim(n)));
+  drawLabels(dim);
+
+  const sel = state.inspected && net.vids.find(n => n.id === state.inspected);
+  if (sel && sel.g && !sel.g.dot) drawCallout(sel);
+
+  // pointer reticle (touch: show where the lens is)
+  if (net.ptr.str > 0.05 && state.mode === 'nerve') {
+    ctx.save(); ctx.globalAlpha = net.ptr.str * (net.ptr.type === 'mouse' ? 0.35 : 0.6);
+    ctx.strokeStyle = '#22e6ff'; ctx.lineWidth = 1; ctx.setLineDash([3, 6]);
+    ctx.beginPath(); ctx.arc(net.ptr.x, net.ptr.y, L.R * 0.55, T * 0.02, T * 0.02 + Math.PI * 2); ctx.stroke(); ctx.restore();
+  }
+  net.ripples = net.ripples.filter(r => r.a > 0.01);
+  net.ripples.forEach(r => { r.r += 9; r.a *= 0.95; ctx.strokeStyle = `rgba(34,230,255,${r.a})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(r.x, r.y, r.r, 0, Math.PI * 2); ctx.stroke(); });
+}
+
+function drawVid(n, al) {
+  const g = n.g, hov = net.hover === n, ins = state.inspected === n.id;
+  const watched = state.watchedIds.includes(n.id);
+  ctx.save(); ctx.globalAlpha = al;
+  if (g.dot) { ctx.fillStyle = n.accent; ctx.globalAlpha = al * 0.8; ctx.beginPath(); ctx.arc(g.x, g.y, g.r, 0, Math.PI * 2); ctx.fill(); ctx.restore(); return; }
+  const rad = Math.min(6, g.w * 0.08);
+  if (hov || ins || n.lens > 0.25) { ctx.shadowColor = n.accent; ctx.shadowBlur = 10 + 18 * Math.max(n.lens, hov || ins ? 1 : 0); }
+  rr(g.x, g.y, g.w, g.h, rad); ctx.fillStyle = '#02101a'; ctx.fill(); ctx.shadowBlur = 0;
+  ctx.save(); rr(g.x, g.y, g.w, g.h, rad); ctx.clip();
+  const img = thumbs[n.id];
+  if (img && img.complete && img.naturalWidth) {
+    ctx.globalAlpha = al * (watched ? 0.45 : 1);
+    ctx.drawImage(img, g.x, g.y, g.w, g.h);
+    ctx.globalAlpha = al;
+  } else {
+    ctx.fillStyle = hexA(n.accent, 0.18); ctx.fillRect(g.x, g.y, g.w, g.h);
+  }
+  // subtle scanlines + bottom shade (lighter than before so thumbnails stay readable)
+  if (g.w > 50) { ctx.fillStyle = 'rgba(0,0,0,.12)'; for (let y = g.y; y < g.y + g.h; y += 3) ctx.fillRect(g.x, y, g.w, 1); }
+  const sh = ctx.createLinearGradient(0, g.y + g.h * 0.55, 0, g.y + g.h); sh.addColorStop(0, 'rgba(0,0,0,0)'); sh.addColorStop(1, 'rgba(0,0,0,.55)');
+  ctx.fillStyle = sh; ctx.fillRect(g.x, g.y, g.w, g.h);
+  // progress bar
+  const pc = pct(n.id);
+  if (pc > 0.02) { ctx.fillStyle = n.accent; ctx.fillRect(g.x, g.y + g.h - 3, g.w * pc, 3); }
+  ctx.restore();
+  // frame
+  ctx.strokeStyle = hov || ins ? '#ffffff' : n.accent; ctx.lineWidth = hov || ins ? 2.2 : 1.2;
+  rr(g.x, g.y, g.w, g.h, rad); ctx.stroke();
+  // badges when large enough
+  if (g.w > 58) {
+    ctx.font = `700 ${clamp(g.w * 0.085, 8, 11)}px "JetBrains Mono", monospace`;
+    const du = n.video.duration || ''; const tw = ctx.measureText(du).width;
+    ctx.fillStyle = 'rgba(1,6,12,.85)'; ctx.fillRect(g.x + g.w - tw - 8, g.y + g.h - 14 - (pc > .02 ? 3 : 0), tw + 6, 12);
+    ctx.fillStyle = '#eaffff'; ctx.textAlign = 'left'; ctx.fillText(du, g.x + g.w - tw - 5, g.y + g.h - 4.5 - (pc > .02 ? 3 : 0));
+    if (isNew(n.video)) { ctx.fillStyle = '#ff8a3d'; ctx.fillRect(g.x + 3, g.y + 3, 26, 11); ctx.fillStyle = '#000'; ctx.font = '700 8px "JetBrains Mono", monospace'; ctx.fillText('NEW', g.x + 6, g.y + 11.5); }
+    if (n.video.isShort) { ctx.fillStyle = '#c084fc'; ctx.fillRect(g.x + g.w - 34, g.y + 3, 31, 11); ctx.fillStyle = '#000'; ctx.font = '700 8px "JetBrains Mono", monospace'; ctx.fillText('SHORT', g.x + g.w - 32, g.y + 11.5); }
+  }
+  if (state.savedIds.includes(n.id)) { ctx.fillStyle = '#ff8a3d'; ctx.font = '700 12px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('★', g.x + g.w - 2, g.y + 2); }
+  if (watched && g.w > 40) { ctx.fillStyle = '#00ffa3'; ctx.font = '700 11px sans-serif'; ctx.textAlign = 'left'; ctx.fillText('✓', g.x + 4, g.y + g.h - 5); }
+  ctx.restore();
+}
+
+function drawLabels(dim) {
+  const mode = state.prefs.labels, placed = net.hubs.filter(h => h.lbl).map(h => h.lbl);
+  const forced = n => net.hover === n || state.inspected === n.id;
+  const cands = net.vids.filter(n => n.g && !n.g.dot && dim(n) > 0.5 && (
+    forced(n) || n.lens > 0.22 || (state.q.trim() && n.match) ||
+    (mode === 'all') || (mode === 'auto' && n.p.z > 0.3 && n.g.w > 48)
+  ));
+  cands.sort((a, b) => (forced(b) - forced(a)) || (b.lens - a.lens) || (b.p.z - a.p.z));
+  // card rects of front-most nodes act as obstacles
+  const cards = net.vids.filter(n => n.g && !n.g.dot && n.p.z > 0.1).map(n => ({ n, x: n.g.x, y: n.g.y, w: n.g.w, h: n.g.h }));
+  const hit = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  const max = isMobile() ? 10 : 22;
+  let shown = 0;
+  for (const n of cands) {
+    if (shown >= max && !forced(n)) break;
+    const f = forced(n) || n.lens > 0.5;
+    const fs = clamp(11 * (0.95 + n.lens * 0.25), 10, 13.5);
+    const maxW = clamp(n.g.w + 40, 120, f ? 230 : 170);
+    const wr = wrapTitle(n, maxW, fs);
+    const meta = `${relTime(n.video)} · ${n.video.duration || ''}`;
+    const lh = fs * 1.35, bw = Math.max(wr.w, 90) + 14, bh = wr.lines.length * lh + 8 + 13;
+    const box = { x: n.p.x - bw / 2, y: n.g.y + n.g.h + 4, w: bw, h: bh };
+    if (!f) {
+      if (placed.some(b => hit(b, box))) continue;
+      if (cards.some(c => c.n !== n && c.n.p.z > n.p.z && hit(c, box))) continue;
+    }
+    placed.push(box); shown++;
+    ctx.save();
+    ctx.globalAlpha = f ? 1 : clamp(0.55 + n.p.z * 0.5, 0.55, 1);
+    ctx.fillStyle = 'rgba(1,6,12,.9)'; ctx.fillRect(box.x, box.y, box.w, box.h);
+    ctx.fillStyle = n.accent; ctx.fillRect(box.x, box.y, 2, box.h);
+    if (f) { ctx.strokeStyle = hexA(n.accent, 0.8); ctx.lineWidth = 1; ctx.strokeRect(box.x + .5, box.y + .5, box.w - 1, box.h - 1); }
+    ctx.font = `500 ${fs}px "Noto Sans JP", sans-serif`; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.fillStyle = f ? '#ffffff' : '#d8f1f8';
+    wr.lines.forEach((l, i) => ctx.fillText(l, box.x + 8, box.y + 5 + i * lh));
+    ctx.font = '500 9px "JetBrains Mono", monospace'; ctx.fillStyle = hexA(n.accent, 0.95);
+    ctx.fillText(meta, box.x + 8, box.y + 6 + wr.lines.length * lh);
+    ctx.restore();
+  }
+}
+
+function drawHub(n, al) {
+  const p = n.p, r = n.r * p.k * net.scaleR * net.zoom * p.mag, T = state.prefs.fx ? net.tick : 0, hov = net.hover === n;
+  ctx.save(); ctx.globalAlpha = al;
+  ctx.strokeStyle = hexA(n.accent, 0.55); ctx.lineWidth = 1; ctx.setLineDash([3, 4]);
+  drawHex(p.x, p.y, r + 9 + Math.sin(T * 0.05 + n.phase) * 2, T * 0.01 + n.phase); ctx.stroke(); ctx.setLineDash([]);
+  const g = ctx.createRadialGradient(p.x - r * 0.3, p.y - r * 0.3, 1, p.x, p.y, r);
+  g.addColorStop(0, n.accent); g.addColorStop(0.6, '#06182a'); g.addColorStop(1, '#010409');
+  ctx.shadowColor = n.accent; ctx.shadowBlur = hov ? 30 : 16;
+  drawHex(p.x, p.y, r, Math.PI / 6); ctx.fillStyle = g; ctx.fill(); ctx.shadowBlur = 0;
+  ctx.strokeStyle = hov ? '#fff' : n.accent; ctx.lineWidth = 2; ctx.stroke();
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  const nm = n.ch.name.length > 9 ? n.ch.name.slice(0, 8) + '…' : n.ch.name;
+  ctx.font = '700 12px "Noto Sans JP", sans-serif';
+  const tw = ctx.measureText(nm).width;
+  const mob = isMobile(), bh = mob ? 18 : 30;
+  n.lbl = { x: p.x - tw / 2 - 6, y: p.y - r - bh - 1, w: tw + 12, h: bh };
+  ctx.fillStyle = 'rgba(1,6,12,.8)'; ctx.fillRect(n.lbl.x, n.lbl.y, n.lbl.w, n.lbl.h);
+  ctx.fillStyle = hexA(n.accent, 0.9); ctx.fillRect(n.lbl.x, n.lbl.y + n.lbl.h - 1, n.lbl.w, 1);
+  ctx.fillStyle = '#ffffff'; ctx.fillText(nm, p.x, p.y - r - (mob ? 5 : 17));
+  if (!mob) { ctx.font = '500 9px "JetBrains Mono", monospace'; ctx.fillStyle = hexA(n.accent, 0.95); ctx.fillText(`${n.ch.handle} [${String(n.count).padStart(2, '0')}]`, p.x, p.y - r - 5); }
+  ctx.restore();
+}
+
+function drawCallout(n) {
+  const g = n.g, T = state.prefs.fx ? net.tick : 0, c = 10 + Math.sin(T * 0.08) * 2;
+  ctx.save(); ctx.strokeStyle = n.accent; ctx.lineWidth = 2;
+  const x0 = g.x - 7, y0 = g.y - 7, x1 = g.x + g.w + 7, y1 = g.y + g.h + 7;
+  [[x0, y0, 1, 1], [x1, y0, -1, 1], [x0, y1, 1, -1], [x1, y1, -1, -1]].forEach(([x, y, sx, sy]) => { ctx.beginPath(); ctx.moveTo(x + sx * c, y); ctx.lineTo(x, y); ctx.lineTo(x, y + sy * c); ctx.stroke(); });
+  if (!isMobile()) {
+    const ex = net.rightEdge - 8, ey = clamp(g.y - 30, 90, net.h - 90);
+    ctx.strokeStyle = hexA(n.accent, 0.65); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x1, y0); ctx.lineTo(x1 + 22, ey); ctx.lineTo(ex, ey); ctx.stroke();
+    ctx.fillStyle = n.accent; ctx.fillRect(ex - 4, ey - 2, 4, 4);
+    ctx.font = '500 9px "JetBrains Mono", monospace'; ctx.textAlign = 'left'; ctx.fillText(`LOCK // ${n.id}`, x1 + 28, ey - 6);
+  }
+  ctx.restore();
+}
+
+// ---------- pointer / touch ----------
+const tip = $('tip');
+function showTip(n, x, y) {
+  if (!n || net.ptr.type !== 'mouse' || n.id === state.inspected) { tip.style.display = 'none'; return; }
+  if (n.type === 'hub') tip.innerHTML = `<div class="c">HUB // ${esc(n.ch.handle)}</div>${esc(n.ch.fullName || n.ch.name)}<div class="m">${n.count} NODES — クリックで${state.sel === n.channelId ? '全体に復帰' : 'セクター集中'}</div>`;
+  else { const v = n.video, c = chOf(v.channelId), pc = pct(v.id); tip.innerHTML = `<div class="c">${esc(c.name)} // ${esc(v.duration)}</div>${esc(v.title)}<div class="m">${fmtPub(v)}（${relTime(v)}） ・ ${fmtViews(v.views)}${pc > .02 ? ` ・ ${Math.round(pc * 100)}%視聴` : ''}${state.watchedIds.includes(v.id) ? ' ・ 視聴済' : ''}</div>`; }
+  tip.style.setProperty('--tc', n.accent); tip.style.display = 'block';
+  const tw = tip.offsetWidth, th = tip.offsetHeight;
+  tip.style.left = Math.min(innerWidth - tw - 8, x + 18) + 'px'; tip.style.top = Math.min(innerHeight - th - 8, y + 18) + 'px';
+}
+function setPtr(e) { net.ptr.x = e.clientX; net.ptr.y = e.clientY; net.ptr.type = e.pointerType || 'mouse'; net.ptr.active = true; }
+canvas.addEventListener('pointerdown', e => {
+  if (state.mode !== 'nerve') return;
+  net.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+  setPtr(e);
+  if (net.pointers.size === 2) {
+    const [a, b] = [...net.pointers.values()];
+    net.pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z: net.tZoom }; net.drag = null; return;
+  }
+  net.drag = { sx: e.clientX, sy: e.clientY, lx: e.clientX, ly: e.clientY, node: pick(e.clientX, e.clientY, e.pointerType !== 'mouse'), moved: false, t: performance.now() };
+  if (e.pointerType !== 'mouse') kick(e.clientX, e.clientY, 4);
+  canvas.classList.add('grabbing');
+});
+canvas.addEventListener('pointermove', e => {
+  if (state.mode !== 'nerve') return;
+  if (net.pointers.has(e.pointerId)) net.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (net.pinch && net.pointers.size >= 2) {
+    const [a, b] = [...net.pointers.values()];
+    net.tZoom = clamp(net.pinch.z * Math.hypot(a.x - b.x, a.y - b.y) / net.pinch.d, 0.55, 2.6); net.zoom = net.tZoom;
+    net.ptr.x = (a.x + b.x) / 2; net.ptr.y = (a.y + b.y) / 2; return;
+  }
+  setPtr(e);
+  if (net.drag) {
+    const dx = e.clientX - net.drag.lx, dy = e.clientY - net.drag.ly;
+    if (Math.hypot(e.clientX - net.drag.sx, e.clientY - net.drag.sy) > (e.pointerType === 'mouse' ? 5 : 9)) net.drag.moved = true;
+    if (net.drag.moved) { net.tYaw = net.tPitch = null; const s = e.pointerType === 'mouse' ? 0.006 : 0.008; net.yaw += dx * s; net.pitch += dy * s; net.vYaw = dx * s; net.vPitch = dy * s; showTip(null); }
+    net.drag.lx = e.clientX; net.drag.ly = e.clientY; return;
+  }
+  const n = pick(e.clientX, e.clientY);
+  net.hover = n; canvas.classList.toggle('pointing', !!n); showTip(n, e.clientX, e.clientY);
+});
+function endPointer(e) {
+  net.pointers.delete(e.pointerId);
+  if (net.pinch) { if (net.pointers.size < 2) net.pinch = null; if (e.pointerType !== 'mouse' && !net.pointers.size) net.ptr.active = false; return; }
+  const d = net.drag; net.drag = null; canvas.classList.remove('grabbing');
+  if (e.pointerType !== 'mouse') { net.ptr.active = false; net.hover = null; }
+  if (!d || d.moved || e.type === 'pointercancel') return;
+  const n = (e.pointerType !== 'mouse' ? d.node : null) || pick(e.clientX, e.clientY, e.pointerType !== 'mouse') || d.node;
+  if (!n) { kick(e.clientX, e.clientY, 9); return; }
+  if (n.type === 'hub') selectSector(state.sel === n.channelId ? 'ALL' : n.channelId);
+  else if (state.inspected === n.id) openPlayer(n.id);
+  else { inspect(n.video, true); vibrate(12); }
+}
+canvas.addEventListener('pointerup', endPointer);
+canvas.addEventListener('pointercancel', endPointer);
+canvas.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') { net.ptr.active = false; net.hover = null; showTip(null); } });
+canvas.addEventListener('wheel', e => { if (state.mode !== 'nerve') return; e.preventDefault(); net.tZoom = clamp(net.tZoom * Math.exp(-e.deltaY * 0.0012), 0.55, 2.6); }, { passive: false });
+canvas.addEventListener('dblclick', e => { const n = pick(e.clientX, e.clientY); if (n && n.type === 'vid') openPlayer(n.id); });
+
+async function toggleTilt() {
+  if (net.gyro) { window.removeEventListener('deviceorientation', onTilt); net.gyro = null; $('tiltBtn').classList.remove('on'); return; }
+  try {
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+      const r = await DeviceOrientationEvent.requestPermission(); if (r !== 'granted') return toast('傾きセンサーの許可が必要です');
+    }
+    net.gyro = { x: 0, y: 0 }; window.addEventListener('deviceorientation', onTilt); $('tiltBtn').classList.add('on'); toast('TILT: 端末を傾けると球体が動きます');
+  } catch (e) { toast('この端末では傾きセンサーを使えません'); }
+}
+function onTilt(e) { if (!net.gyro) return; net.gyro.x = clamp((e.gamma || 0) / 25, -1, 1); net.gyro.y = clamp(((e.beta || 0) - 40) / 25, -1, 1); }
+
+function pulseWave() {
+  net.ripples.push({ x: net.cx, y: net.cy, r: 10, a: 0.7 }); kick(net.cx, net.cy, 14);
+  net.vYaw += 0.04; for (let i = 0; i < 24; i++) spawnPulse();
+  syslog('OPTICAL PULSE >> broadcast', 'ok');
+}
+
+// =============================================================================
+// 6. UI RENDER
+// =============================================================================
+function renderRail() {
+  const base = state.videos.filter(v => passTab(v)), known = new Set(state.channels.map(c => c.id));
+  const cnt = fn => base.filter(fn).length, nw = fn => state.videos.filter(v => fn(v) && isNew(v)).length;
+  const items = [
+    { key: 'ALL', label: 'ALL HUBS', sub: `${state.channels.length} CHANNELS LINKED`, accent: '#22e6ff', n: cnt(v => known.has(v.channelId)), sector: true },
+    ...SECTORS.map(s => ({ key: s.key, label: s.label, sub: `${state.channels.filter(c => c.category === s.cat).length} HUBS`, accent: s.accent, n: cnt(v => known.has(v.channelId) && chOf(v.channelId).category === s.cat), sector: true })),
+    'sep',
+    ...state.channels.map(c => ({ key: c.id, label: c.name, sub: c.handle, accent: c.accent || '#22e6ff', n: cnt(v => v.channelId === c.id), nw: nw(v => v.channelId === c.id) }))
+  ];
+  $('hubList').innerHTML = items.map(it => it === 'sep' ? '<div class="sep"></div>' : `
+    <button class="hub ${it.sector ? 'sector' : ''} ${state.sel === it.key ? 'on' : ''}" data-k="${esc(it.key)}" style="--hc:${it.accent}">
+      <span class="bar"></span><span style="min-width:0"><div class="n">${esc(it.label)}</div><div class="h">${esc(it.sub)}</div></span>
+      <span class="c">${it.nw ? `<i>+${it.nw}</i>` : ''}${String(it.n).padStart(2, '0')}</span></button>`).join('');
+  $('hubCount').textContent = String(state.channels.length).padStart(2, '0');
+  $('hubList').querySelectorAll('.hub').forEach(b => b.onclick = () => selectSector(b.dataset.k));
+}
+function renderTabs() {
+  $('tabs').innerHTML = TABS.map(t => { const n = state.videos.filter(v => passTab(v, t.key) && passChannel(v)).length; return `<button class="tab ${state.tab === t.key ? 'on' : ''}" data-t="${t.key}"><span class="k">${t.k}</span>${t.label}${t.key === 'deep' ? '' : `<span class="ct">${n}</span>`}</button>`; }).join('');
+  $('tabs').querySelectorAll('.tab').forEach(b => b.onclick = () => setTab(b.dataset.t));
+  const on = $('tabs').querySelector('.tab.on'), tb = $('tabs'); if (on && isMobile()) tb.scrollLeft = on.offsetLeft - (tb.clientWidth - on.offsetWidth) / 2;
+}
+function setTab(t) {
+  state.tab = t; state.page = 1;
+  if (t === 'deep') { state.seed = Math.floor(Math.random() * 99999); pulseWave(); }
+  syslog(`MODE >> ${t.toUpperCase()}`); renderAll();
+}
+function nerveCap() { return Math.round((isMobile() ? 28 : 56) * state.prefs.density); }
+function matrixCap() {
+  const st = $('stage').getBoundingClientRect(), short = state.tab === 'shorts';
+  const cols = Math.max(1, Math.floor(st.width / (short ? 170 : 255))), rows = Math.max(1, Math.floor(st.height / (short ? 330 : 215)));
+  return { cols, rows, per: cols * rows };
+}
+// ---------- MATRIX (scrollable, incremental) ----------
+const mx = { list: [], n: 0, last: '', obs: null, ctx: null };
+function cardHTML(v, i) {
+  const c = chOf(v.channelId), sv = state.savedIds.includes(v.id), pc = pct(v.id);
+  const vt = magiVotes(v, mx.ctx), un = vt.every(Boolean);
+  return `<article class="card ${state.watchedIds.includes(v.id) ? 'watched' : ''} ${un ? 'unani' : ''}" data-v="${v.id}" style="--ca:${c.accent};animation-delay:${Math.min(i, 14) * 45}ms">
+    <div class="th"><img src="https://i.ytimg.com/vi/${v.id}/${v.isShort ? 'hqdefault' : 'mqdefault'}.jpg" alt="" loading="lazy" decoding="async">
+      <span class="tg ch">${esc(c.name)}</span>${isNew(v) ? '<span class="tg nw">NEW</span>' : ''}${un ? '<span class="tg mg">MAGI 可決</span>' : ''}<span class="tg dt" title="${esc(fmtPub(v))}">${esc(relTime(v))}</span><span class="tg du">${esc(v.duration)}</span>${pc > .02 ? `<span class="pg" style="width:${pc * 100}%"></span>` : ''}</div>
+    <button class="st ${sv ? 'on' : ''}" data-s="${v.id}" title="ストック">${sv ? '★' : '☆'}</button>
+    <div class="bd"><div class="ti" data-t="${esc(v.title)}">${esc(v.title)}</div><div class="mt"><span><span class="lamps" title="MAGI: MELCHIOR / BALTHASAR / CASPER"><i class="${vt[0] ? 'on' : ''}">M</i><i class="${vt[1] ? 'on' : ''}">B</i><i class="${vt[2] ? 'on' : ''}">C</i></span><span class="pd">${esc(fmtPub(v))}</span><span class="ps">${esc(fmtPub(v).slice(5, 10).replace('-', '/'))}</span></span><b>${fmtViews(v.views)}</b></div></div></article>`;
+}
+function renderMatrix(list) {
+  const g = $('matrix');
+  mx.list = list; mx.n = 0; mx.last = ''; mx.ctx = magiContext(state.videos.filter(v => state.channels.some(c => c.id === v.channelId)));
+  const un = list.filter(v => magiVotes(v, mx.ctx).every(Boolean)).length;
+  g.innerHTML = `<div class="magibar"><span class="ttl">MAGI</span><span class="units"><span>MELCHIOR·1</span><span>BALTHASAR·2</span><span>CASPER·3</span></span>
+      <span class="stat">全会一致 <b>${un}</b> / ${list.length}</span>
+      <button class="btn mg ${state.magiOnly ? 'on' : ''}" data-magi="filter">全会一致のみ</button><button class="btn mg" data-magi="run">MAGI 審議 ▶</button></div>
+    <div class="mgrid ${state.tab === 'shorts' ? 'short' : ''}" id="mgrid"></div><div id="msent"></div>`;
+  g.scrollTop = 0;
+  appendCards(isMobile() ? 24 : 48);
+  if (mx.obs) mx.obs.disconnect();
+  mx.obs = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) appendCards(isMobile() ? 24 : 48); }, { root: g, rootMargin: '700px 0px' });
+  mx.obs.observe($('msent'));
+}
+function appendCards(k) {
+  const grid = $('mgrid'); if (!grid || mx.n >= mx.list.length) return;
+  const byDate = ['date', 'unwatched'].includes(state.sortKey) && !state.magiOnly;
+  const part = mx.list.slice(mx.n, mx.n + k); let html = '';
+  part.forEach((v, i) => {
+    if (byDate) { const m = monthOf(v); if (m !== mx.last) { const cnt = mx.list.filter(x => monthOf(x) === m).length; html += `<div class="mhead">${m}<small>${cnt} NODES</small></div>`; mx.last = m; } }
+    html += cardHTML(v, i);
+  });
+  grid.insertAdjacentHTML('beforeend', html); mx.n += part.length;
+  $('msent').textContent = mx.n < mx.list.length ? `▼ ${mx.n} / ${mx.list.length} — SCROLL TO DECODE MORE` : `— END OF ARCHIVE · ${mx.list.length} NODES —`;
+}
+function patchCards() {
+  document.querySelectorAll('#mgrid .card').forEach(el => {
+    const id = el.dataset.v, sv = state.savedIds.includes(id), st = el.querySelector('.st');
+    el.classList.toggle('watched', state.watchedIds.includes(id));
+    if (st) { st.classList.toggle('on', sv); st.textContent = sv ? '★' : '☆'; }
+  });
+}
+// decode-scramble effect on hover (cyberpunk "decryption")
+const GLY = 'アイウエオカキクケコサシスセソ0123456789ABCDEF#$%&*<>/';
+function scramble(el) {
+  if (el._sc) return; const orig = el.dataset.t || el.textContent; el._sc = true;
+  const chars = Array.from(orig); let f = 0; const total = 14;
+  (function tick() {
+    f++; const reveal = Math.floor(chars.length * f / total);
+    el.textContent = chars.map((ch, i) => i < reveal || ch === ' ' ? ch : GLY[(Math.random() * GLY.length) | 0]).join('');
+    if (f < total) requestAnimationFrame(() => setTimeout(tick, 22)); else { el.textContent = orig; el._sc = false; }
+  })();
+}
+
+// ---------- MAGI SYSTEM ----------
+const dayKey = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+function magiContext(vids) {
+  const by = {}; vids.forEach(v => { if (v.views) (by[v.channelId] = by[v.channelId] || []).push(v.views); });
+  const med = {}; Object.entries(by).forEach(([k, a]) => { a.sort((x, y) => x - y); med[k] = a[Math.floor(a.length / 2)]; });
+  return { med, day: dayKey() };
+}
+function magiVotes(v, ctx) {
+  ctx = ctx || magiContext(state.videos);
+  const med = ctx.med[v.channelId];
+  const M = v.views && med ? v.views >= med * 1.1 : isNew(v);                         // MELCHIOR: statistics
+  const dm = durMin(v.duration), watched = state.watchedIds.includes(v.id);
+  const B = !watched && (pct(v.id) > 0.02 || v.isShort || (dm >= 4 && dm <= 45) || v.duration === 'NEW'); // BALTHASAR: care
+  const C = isNew(v) || state.savedIds.includes(v.id) || hashStr(v.id + ctx.day) % 100 < 30;            // CASPER: intuition
+  return [!!M, !!B, !!C];
+}
+const MAGI_WHY = [
+  [v => v.views ? `再生数 ${fmtViews(v.views)} — 統計的に有意` : '新着につき暫定承認', v => v.views ? `再生数 ${fmtViews(v.views)} — 基準未満` : 'データ不足'],
+  [v => pct(v.id) > .02 ? `視聴途中 ${Math.round(pct(v.id) * 100)}% — 続きを推奨` : `尺 ${v.duration} — 無理なく視聴可能`, v => state.watchedIds.includes(v.id) ? '視聴済み — 重複を回避' : `尺 ${v.duration} — 負担大`],
+  [v => isNew(v) ? `${relTime(v)}公開 — 鮮度良好` : state.savedIds.includes(v.id) ? 'ストック済み — 好み一致' : '直感的に承認', v => '今日の気分ではない']
+];
+let magiRun = 0;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+async function runMagi() {
+  const id = ++magiRun;
+  $('magiModal').classList.add('show');
+  const pool = (state.mode === 'grid' ? mx.list : currentList()).filter(v => !state.watchedIds.includes(v.id));
+  const ctx = magiContext(state.videos);
+  const resetU = () => [0, 1, 2].forEach(i => { const u = $('mu' + i); u.className = 'mu ' + ['mel', 'bal', 'cas'][i]; u.querySelector('.vd').textContent = '審議中'; u.querySelector('.why').textContent = ''; u.classList.add('think'); });
+  $('mgPlay').disabled = true; $('mgRes').textContent = ''; $('mgRes').className = 'mg-res'; $('mgLog').innerHTML = '';
+  const log = t => { const el = $('mgLog'); el.innerHTML = `> ${esc(t)}<br>` + el.innerHTML; };
+  if (!pool.length) { $('mgPhase').textContent = 'NO CANDIDATE'; $('mgCand').innerHTML = '<div class="t">審議対象の未視聴ノードがありません</div>'; return; }
+  const ranked = pool.map(v => ({ v, s: magiVotes(v, ctx).filter(Boolean).length * 10 + Math.random() * 9 })).sort((a, b) => b.s - a.s).slice(0, 6);
+  let best = null;
+  for (let round = 0; round < ranked.length; round++) {
+    if (id !== magiRun) return;
+    const v = ranked[round].v, c = chOf(v.channelId), votes = magiVotes(v, ctx);
+    $('mgPhase').textContent = `提訴 ${String(round + 1).padStart(2, '0')} — DELIBERATING`;
+    $('mgCand').innerHTML = `<img src="https://i.ytimg.com/vi/${v.id}/mqdefault.jpg" alt=""><div><div class="t">${esc(v.title)}</div><div class="m">${esc(c.name)} ・ ${esc(fmtPub(v))}（${esc(relTime(v))}） ・ ${esc(v.duration)}</div></div>`;
+    resetU(); log(`QUERY ${v.id} SUBMITTED TO MAGI`);
+    await sleep(round ? 420 : 900);
+    for (const i of [0, 1, 2]) {
+      if (id !== magiRun) return;
+      const u = $('mu' + i); u.classList.remove('think'); u.classList.add(votes[i] ? 'yes' : 'no');
+      u.querySelector('.vd').textContent = votes[i] ? '承 認' : '否 決';
+      u.querySelector('.why').textContent = MAGI_WHY[i][votes[i] ? 0 : 1](v);
+      log(`${['MELCHIOR·1', 'BALTHASAR·2', 'CASPER·3'][i]} : ${votes[i] ? 'APPROVE' : 'REJECT'}`);
+      vibrate(10); await sleep(round ? 220 : 420);
+    }
+    const n = votes.filter(Boolean).length;
+    if (!best || n > best.n) best = { v, n };
+    if (n === 3) break;
+    $('mgRes').textContent = '否 決'; $('mgRes').className = 'mg-res no'; log('RESOLUTION REJECTED — RE-SUBMITTING');
+    await sleep(round ? 380 : 700);
+  }
+  if (id !== magiRun) return;
+  const v = best.v;
+  $('mgCand').innerHTML = `<img src="https://i.ytimg.com/vi/${v.id}/mqdefault.jpg" alt=""><div><div class="t">${esc(v.title)}</div><div class="m">${esc(chOf(v.channelId).name)} ・ ${esc(fmtPub(v))}（${esc(relTime(v))}） ・ ${esc(v.duration)}</div></div>`;
+  const votes = magiVotes(v, ctx);
+  [0, 1, 2].forEach(i => { const u = $('mu' + i); u.className = 'mu ' + ['mel', 'bal', 'cas'][i] + (votes[i] ? ' yes' : ' no'); u.querySelector('.vd').textContent = votes[i] ? '承 認' : '否 決'; u.querySelector('.why').textContent = MAGI_WHY[i][votes[i] ? 0 : 1](v); });
+  $('mgRes').textContent = best.n === 3 ? '可 決' : best.n === 2 ? '可 決（2:1）' : '保 留'; $('mgRes').className = 'mg-res ' + (best.n >= 2 ? 'yes' : 'no');
+  $('mgPhase').textContent = best.n === 3 ? 'UNANIMOUS — 全会一致' : best.n === 2 ? 'MAJORITY — 多数決' : 'NO CONSENSUS';
+  log(best.n >= 2 ? 'RESOLUTION PASSED' : 'NO CONSENSUS — BEST CANDIDATE PRESENTED');
+  $('mgPlay').disabled = false; $('mgPlay').onclick = () => { $('magiModal').classList.remove('show'); inspect(v, true); openPlayer(v.id); };
+}
+
+function currentList() {
+  if (state.mode === 'nerve') { let list = getList(false); if (state.q.trim()) list = [...list.filter(matchQ), ...list.filter(v => !matchQ(v))]; return list; }
+  return getList(true);
+}
+function renderStage() {
+  document.body.classList.toggle('mode-grid', state.mode === 'grid');
+  document.body.classList.toggle('mode-nerve', state.mode === 'nerve');
+  const tabName = { video: 'LATEST', archive: 'FULL ARCHIVE', popular: 'HALL OF MASS', deep: 'DEEP EXCAVATION', marathon: 'LONG ARCHIVE', shorts: 'SHORTS PULSE', history: 'TRACE / RESUME', saved: 'STOCKED' }[state.tab];
+  const secName = state.sel === 'ALL' ? 'ALL HUBS' : state.sel.startsWith('CAT:') ? 'SECTOR ' + state.sel.slice(4) : chOf(state.sel).name;
+  $('deckTitle').textContent = `${secName} // ${tabName}`;
+  const list = currentList(); let pageItems;
+  if (state.mode === 'nerve') {
+    const cap = nerveCap();
+    state.totalPages = Math.max(1, Math.ceil(list.length / cap)); state.page = Math.min(state.page, state.totalPages);
+    pageItems = list.slice((state.page - 1) * cap, state.page * cap);
+    buildNet(pageItems); $('matrix').innerHTML = '';
+    $('qHits').textContent = state.q.trim() ? `${list.filter(matchQ).length} RECALLED` : `${list.length} NODES`;
+  } else {
+    state.totalPages = 1; state.page = 1;
+    pageItems = list;
+    renderMatrix(list);
+    $('qHits').textContent = `${list.length} NODES`;
+    net.vids = []; net.hubs = []; net.links = []; net.pulses = []; net.order = [];
+  }
+  $('emptyMsg').classList.toggle('show', pageItems.length === 0);
+  $('emptyMsg').innerHTML = state.channels.length
+    ? '<div><div class="big">NO SIGNAL</div><div class="lbl" style="margin-top:8px">該当ノードなし — 別のタブ/ハブを選択、または ⟳ で同期</div></div>'
+    : '<div><div class="big" style="color:var(--c1)">NO LINK</div><div class="lbl" style="margin-top:8px">まだチャンネルが登録されていません</div><button class="btn pri" onclick="openSetup()">＋ チャンネルを一括登録</button></div>';
+  $('pageTxt').textContent = state.mode === 'grid' ? `${list.length} NODES` : `CLUSTER ${state.page}/${state.totalPages}`;
+  renderChBar();
+  $('prevBtn').disabled = state.page <= 1; $('nextBtn').disabled = state.page >= state.totalPages;
+}
+function renderAll() { setAccent(); renderRail(); renderTabs(); resize(); renderStage(); }
+function selectSector(key) {
+  state.sel = key; state.page = 1; net.tYaw = null; net.tZoom = 1;
+  syslog(`ROUTE >> ${key === 'ALL' ? 'ALL HUBS' : key.startsWith('CAT:') ? 'SECTOR ' + key.slice(4) : chOf(key).handle}`, 'ok');
+  renderAll();
+}
+
+function inspect(v, focus) {
+  if (!v) return;
+  state.inspected = v.id;
+  const c = chOf(v.channelId), pc = pct(v.id), p = state.progress[v.id];
+  setAccent(c.accent);
+  $('insEmpty').classList.add('hide'); $('insBody').classList.add('show'); $('inspector').classList.add('show-m');
+  $('insPrevN').style.display = $('insNextN').style.display = 'block';
+  $('insThumb').src = `https://i.ytimg.com/vi/${v.id}/hqdefault.jpg`;
+  $('insCh').textContent = `${c.name}  ·  ${relTime(v)}`;
+  $('insTitle').textContent = v.title;
+  $('insDate').innerHTML = `${esc(fmtPub(v))}<br><small style="color:var(--c2)">${esc(relTime(v))}</small>`; $('insLen').textContent = v.duration || '-'; $('insViews').textContent = fmtViews(v.views);
+  const w = state.watchedIds.includes(v.id);
+  $('insState').textContent = w ? 'WATCHED' : pc > .02 ? `${Math.round(pc * 100)}% 視聴中` : isNew(v) ? 'NEW' : 'UNREAD';
+  $('insState').style.color = w ? 'var(--mute)' : 'var(--c2)';
+  $('insPg').style.width = (pc * 100) + '%';
+  $('insPlay').textContent = canResume(v.id) ? `▶ 続きから ${secToDur(p.t)}` : '▶ 再生';
+  $('insYT').href = `https://www.youtube.com/watch?v=${v.id}`;
+  updateBtns();
+  if (focus) { focusNode(net.vids.find(x => x.id === v.id)); syslog(`LOCK >> ${v.id}`); }
+}
+function clearInspect() { $('insPrevN').style.display = $('insNextN').style.display = 'none'; state.inspected = null; setAccent(); $('insEmpty').classList.remove('hide'); $('insBody').classList.remove('show'); $('inspector').classList.remove('show-m'); net.tZoom = 1; }
+function updateBtns() {
+  if (state.inspected) {
+    const s = state.savedIds.includes(state.inspected), w = state.watchedIds.includes(state.inspected);
+    $('insSave').textContent = s ? '★' : '☆'; $('insSave').classList.toggle('on', s);
+    $('insWatch').classList.toggle('ok', w); $('insWatch').title = w ? '未視聴に戻す (W)' : '視聴済みにする (W)';
+  }
+  if (state.playing) { const s = state.savedIds.includes(state.playing); $('pSave').innerHTML = (s ? '★' : '☆') + '<span class="t"> STOCK</span>'; $('pSave').classList.toggle('on', s); }
+}
+function refreshAfterChange() {
+  updateBtns(); renderTabs(); renderRail();
+  if (['saved', 'history'].includes(state.tab) || state.hideWatched || state.magiOnly) { if (state.mode === 'grid') { const st = $('matrix').scrollTop; renderStage(); $('matrix').scrollTop = st; } else renderStage(); }
+  else if (state.mode === 'grid') patchCards();
+  if (state.inspected) inspect(vidById(state.inspected), false);
+}
+function toggleSave(id) {
+  if (state.savedIds.includes(id)) { state.savedIds = state.savedIds.filter(x => x !== id); toast('ストックから解除'); }
+  else { state.savedIds.push(id); toast('★ ストックに保存'); syslog(`STOCK >> ${id}`, 'ok'); }
+  store.set('aether_saved_v1', state.savedIds); refreshAfterChange();
+}
+function setWatched(id, on) {
+  const has = state.watchedIds.includes(id);
+  if (on && !has) state.watchedIds.push(id);
+  if (!on && has) state.watchedIds = state.watchedIds.filter(x => x !== id);
+  if (!on) delete state.progress[id];
+  store.set('aether_watched_v1', state.watchedIds); store.set('aether_progress_v1', state.progress);
+}
+function toggleWatched(id) { const on = !state.watchedIds.includes(id); setWatched(id, on); toast(on ? '✓ 視聴済みにしました' : '未視聴に戻しました'); refreshAfterChange(); }
+async function share(id) {
+  const v = vidById(id); if (!v) return;
+  const yt = `https://www.youtube.com/watch?v=${id}`;
+  const app = /^https?:$/.test(location.protocol) && !IN_FRAME ? `${location.origin}${location.pathname}#v=${id}` : null;
+  try {
+    if (navigator.share) { await navigator.share({ title: v.title, text: v.title, url: yt }); return; }
+    await navigator.clipboard.writeText(app ? `${v.title}\n${yt}\n${app}` : `${v.title}\n${yt}`); toast('リンクをコピーしました');
+  } catch (e) { if (e && e.name !== 'AbortError') prompt('リンクをコピーしてください', yt); }
+}
+
+// =============================================================================
+// 7. PLAYER — IFrame API (resume / auto-next / embed-blocked detection) + Error 153 fix
+// =============================================================================
+let yt = null, ytReady = null, ytTimer = null, usingAPI = false;
+function loadYTApi() {
+  if (window.YT && YT.Player) return Promise.resolve(true);
+  if (!ytReady) ytReady = new Promise(res => {
+    const prev = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => { prev && prev(); res(true); };
+    const s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api'; s.onerror = () => res(false);
+    document.head.appendChild(s); setTimeout(() => res(!!(window.YT && YT.Player)), 6000);
+  });
+  return ytReady;
+}
+function canResume(id) { const p = state.progress[id]; return p && p.t > 15 && p.d && p.t < p.d - 20 && !state.watchedIds.includes(id); }
+function resetMount() { if (yt && yt.destroy) { try { yt.destroy(); } catch (e) {} } yt = null; clearInterval(ytTimer); const box = $('pBox'); const old = $('pMount'); const m = document.createElement('div'); m.id = 'pMount'; old.replaceWith(m); return m; }
+function saveProgress() {
+  if (!yt || !yt.getCurrentTime || !state.playing) return;
+  const t = yt.getCurrentTime(), d = yt.getDuration();
+  if (!d) return;
+  state.progress[state.playing] = { t, d, at: Date.now() };
+  if (t / d > 0.9) setWatched(state.playing, true);
+  store.set('aether_progress_v1', state.progress);
+  const left = d - t; $('pResume').textContent = `${secToDur(t)} / ${secToDur(d)}`;
+}
+async function openPlayer(id, opts = {}) {
+  const v = vidById(id); if (!v) return;
+  state.playing = id;
+  if (!opts.keepQueue) state.queue = currentList().map(x => x.id);
+  if (!state.queue.includes(id)) state.queue.unshift(id);
+  state.history = [{ id, at: Date.now() }, ...state.history.filter(h => h.id !== id)].slice(0, 300);
+  store.set('aether_history_v1', state.history);
+  const c = chOf(v.channelId); setAccent(c.accent);
+  $('pCh').textContent = c.name; $('pTitle').textContent = v.title;
+  $('pMeta').textContent = `公開 ${fmtPub(v)}（${relTime(v)}） ・ ${fmtViews(v.views)} ・ ${v.duration}`;
+  const ytUrl = `https://www.youtube.com/watch?v=${v.id}`;
+  ['pYT', 'pWarnYT', 'pErrYT'].forEach(k => $(k).href = ytUrl);
+  $('pBox').classList.toggle('short', !!v.isShort);
+  $('pErr').classList.remove('show'); $('pResume').textContent = '';
+  const qi = state.queue.indexOf(id); $('pPrev').disabled = qi <= 0; $('pNext').disabled = qi < 0 || qi >= state.queue.length - 1;
+  updateBtns(); $('playerModal').classList.add('show');
+  if (!IN_FRAME && /^https?:$/.test(location.protocol)) history.replaceState(null, '', '#v=' + id);
+  syslog(`WIRED LINK >> ${v.id}`, 'ok');
+  const start = canResume(id) ? Math.floor(state.progress[id].t) : 0;
+  if (start) toast(`続きから再生 ${secToDur(start)}`);
+  const mount = resetMount();
+  if (IS_FILE && !opts.force) { $('pWarn').classList.add('show'); return; }
+  $('pWarn').classList.remove('show');
+  const ok = await loadYTApi();
+  if (state.playing !== id) return;
+  const pv = { autoplay: 1, rel: 0, playsinline: 1, start };
+  if (/^https?:$/.test(location.protocol)) pv.origin = location.origin;
+  if (ok) {
+    usingAPI = true;
+    yt = new YT.Player(mount, {
+      host: 'https://www.youtube-nocookie.com', videoId: id, playerVars: pv, width: '100%', height: '100%',
+      events: {
+        onReady: e => { try { e.target.getIframe().setAttribute('referrerpolicy', 'strict-origin-when-cross-origin'); } catch (er) {} },
+        onStateChange: e => {
+          if (e.data === 1) { clearInterval(ytTimer); ytTimer = setInterval(saveProgress, 4000); }
+          if (e.data === 2) saveProgress();
+          if (e.data === 0) { saveProgress(); setWatched(id, true); refreshAfterChange(); if (state.prefs.autoNext) step(1, true); }
+        },
+        onError: e => {
+          const m = { 2: '動画IDが不正です。', 5: 'このブラウザで再生できない形式です。', 100: '動画が削除されたか非公開です。', 101: 'この動画は投稿者によって埋め込み再生が許可されていません。', 150: 'この動画は投稿者によって埋め込み再生が許可されていません。', 153: '埋め込み元(Referer)が送られていません。Webサーバー経由で開いてください。' }[e.data] || `再生エラー (${e.data})`;
+          $('pErrT').textContent = `⚠ PLAYBACK ERROR ${e.data}`; $('pErrM').textContent = m; $('pErr').classList.add('show');
+          syslog(`ERR ${e.data} >> ${id}`, 'wr');
+        }
+      }
+    });
+  } else {
+    usingAPI = false; // fallback: plain iframe
+    const ifr = document.createElement('iframe');
+    ifr.referrerPolicy = 'strict-origin-when-cross-origin';
+    ifr.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share'; ifr.allowFullscreen = true;
+    ifr.src = `https://www.youtube-nocookie.com/embed/${id}?${new URLSearchParams(pv)}`;
+    mount.replaceWith(ifr); ifr.id = 'pMount';
+    setWatched(id, true);
+  }
+  refreshAfterChange();
+}
+function step(dir, auto) {
+  const i = state.queue.indexOf(state.playing), j = i + dir;
+  if (i < 0 || j < 0 || j >= state.queue.length) { if (auto) toast('キューの最後に到達しました'); return; }
+  openPlayer(state.queue[j], { keepQueue: true }); const v = vidById(state.queue[j]); if (v) inspect(v, false);
+}
+function closePlayer() {
+  if (!$('playerModal').classList.contains('show')) return;
+  saveProgress(); resetMount(); state.playing = null;
+  $('playerModal').classList.remove('show');
+  if (!IN_FRAME && location.hash.startsWith('#v=')) history.replaceState(null, '', location.pathname + location.search);
+  if (state.inspected) inspect(vidById(state.inspected), false); else setAccent();
+  refreshAfterChange();
+}
+
+// =============================================================================
+// 8. SYNC (API v3 / RSS) + channel resolve
+// =============================================================================
+async function sync(quiet) {
+  const ico = $('syncIco'); ico.classList.add('spin');
+  const targets = (state.sel !== 'ALL' && !state.sel.startsWith('CAT:')) ? state.channels.filter(c => c.id === state.sel) : state.channels;
+  let added = 0; const key = (state.apiKey || '').trim(); const hadVideos = state.videos.length > 0;
+  syslog(key ? 'SYNC >> YouTube Data API v3' : 'SYNC >> public RSS');
+  await Promise.all(targets.map(async ch => {
+    if (!ch.id.startsWith('UC')) return;
+    try {
+      if (key) {
+        const pl = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&maxResults=50&playlistId=UU${ch.id.slice(2)}&key=${encodeURIComponent(key)}`);
+        if (!pl.ok) { syslog(`ERR ${pl.status} >> ${ch.handle}`, 'wr'); return; }
+        const ids = ((await pl.json()).items || []).map(i => i.contentDetails && i.contentDetails.videoId).filter(Boolean);
+        if (!ids.length) return;
+        const vr = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails,statistics&id=${ids.join(',')}&key=${encodeURIComponent(key)}`);
+        if (!vr.ok) return;
+        for (const it of ((await vr.json()).items || [])) {
+          if (it.snippet && it.snippet.liveBroadcastContent === 'upcoming') continue;
+          const e = entryFromApi(it, ch.id);
+          const ix = state.videos.findIndex(v => v.id === e.id);
+          if (ix >= 0) state.videos[ix] = e; else { state.videos.push(e); added++; }
+        }
+      } else {
+        const r = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent('https://www.youtube.com/feeds/videos.xml?channel_id=' + ch.id)}`);
+        if (!r.ok) return;
+        for (const it of ((await r.json()).items || [])) {
+          const vid = (it.guid || '').split(':').pop(); if (!vid) continue;
+          const title = it.title || '', isShort = /#shorts/i.test(title) || (it.link || '').includes('/shorts/');
+          const pub = it.pubDate ? new Date(it.pubDate.replace(' ', 'T') + 'Z').toISOString() : '';
+          const ex = state.videos.find(v => v.id === vid);
+          if (ex) { if (!ex.pub && pub) ex.pub = pub; }
+          else { state.videos.push({ id: vid, channelId: ch.id, title, date: pub ? new Date(Date.parse(pub) + 9 * 3600e3).toISOString().slice(0, 10) : '', pub, duration: isShort ? '0:50' : 'NEW', views: 0, isShort }); added++; }
+        }
+      }
+    } catch (e) { syslog(`ERR >> ${ch.handle}`, 'wr'); }
+  }));
+  store.set('aether_videos_v1', state.videos); store.set('aether_lastsync_v1', Date.now());
+  ico.classList.remove('spin'); renderAll();
+  const msg = added ? `${added} 個の新規ノードを接続` : '全ノード同期済み';
+  if (added && hadVideos) patternBlue(added); else if (!quiet || added) toast(msg);
+  syslog(`SYNC DONE >> ${msg}`, 'ok');
+}
+// ---------- per-channel full archive ----------
+let archBusy = null;
+function renderChBar() {
+  const bar = $('chBar');
+  const single = state.sel !== 'ALL' && !state.sel.startsWith('CAT:');
+  if (!single) { bar.classList.remove('show'); return; }
+  const c = chOf(state.sel), have = state.videos.filter(v => v.channelId === c.id).length;
+  const info = archBusy === c.id ? `<span class="grow" id="archMsg">取得中…</span>`
+    : `<span class="grow">取得済み <b>${have}</b> 本${c.archivedAt ? ` ・ 全件取得 ${new Date(c.archivedAt).toLocaleDateString('ja-JP')}` : ''}</span>`;
+  bar.innerHTML = `<b>${esc(c.name)}</b>${info}<button class="btn" id="archBtn" ${archBusy ? 'disabled' : ''}>${c.archivedAt ? '⟳ 全動画を再取得' : '⇩ 全動画を取得'}</button><a class="btn" href="https://www.youtube.com/channel/${esc(c.id)}/videos" target="_blank" rel="noopener">YT↗</a>`;
+  bar.classList.add('show');
+  $('archBtn').onclick = () => fetchArchive(c.id);
+}
+function entryFromApi(it, chId) {
+  const sec = isoToSec(it.contentDetails && it.contentDetails.duration), title = (it.snippet && it.snippet.title) || '', pub = (it.snippet && it.snippet.publishedAt) || '';
+  return { id: it.id, channelId: chId, title, date: pub ? new Date(Date.parse(pub) + 9 * 3600e3).toISOString().slice(0, 10) : '', pub, duration: secToDur(sec), views: +((it.statistics && it.statistics.viewCount) || 0), isShort: sec <= 62 || /#shorts/i.test(title) };
+}
+const idx = () => { const m = new Map(); state.videos.forEach((v, i) => m.set(v.id, i)); return m; };
+async function fetchArchive(chId) {
+  const key = (state.apiKey || '').trim(), c = chOf(chId);
+  if (!key) { toast('全動画の取得には YouTube Data API キーが必要です（⚙設定）'); return; }
+  if (archBusy) return;
+  archBusy = chId; renderChBar();
+  const msg = t => { const el = $('archMsg'); if (el) el.textContent = t; };
+  try {
+    let token = '', ids = [], total = 0;
+    do {
+      const r = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&maxResults=50&playlistId=UU${chId.slice(2)}&key=${encodeURIComponent(key)}${token ? '&pageToken=' + token : ''}`);
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const d = await r.json(); total = (d.pageInfo && d.pageInfo.totalResults) || total;
+      if (!ids.length && total > 3000 && !confirm(`${c.name} には約${total}本あります。新しい順に最大3000本まで取得しますか？`)) throw new Error('キャンセル');
+      ids.push(...(d.items || []).map(i => i.contentDetails && i.contentDetails.videoId).filter(Boolean));
+      token = d.nextPageToken || '';
+      msg(`一覧を取得中 ${ids.length} / ${total || '?'}`);
+    } while (token && ids.length < 3000);
+    let added = 0; const map = idx();
+    for (let i = 0; i < ids.length; i += 50) {
+      const r = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails,statistics&id=${ids.slice(i, i + 50).join(',')}&key=${encodeURIComponent(key)}`);
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      for (const it of ((await r.json()).items || [])) {
+        if (it.snippet && it.snippet.liveBroadcastContent === 'upcoming') continue;
+        const e = entryFromApi(it, chId);
+        if (map.has(e.id)) state.videos[map.get(e.id)] = e; else { map.set(e.id, state.videos.length); state.videos.push(e); added++; }
+      }
+      msg(`詳細を取得中 ${Math.min(i + 50, ids.length)} / ${ids.length}`);
+    }
+    c.archivedAt = Date.now(); store.set('aether_channels_v1', state.channels);
+    store.set('aether_videos_v1', state.videos);
+    toast(`${c.name}：${ids.length} 本を取得（新規 ${added}）`); syslog(`ARCHIVE >> ${c.handle} ${ids.length} nodes`, 'ok');
+    if (state.tab !== 'archive') state.tab = 'archive';
+    if (state.mode !== 'grid') { state.mode = 'grid'; $('vGrid').classList.add('on'); $('vNerve').classList.remove('on'); }
+  } catch (e) { if (e.message !== 'キャンセル') toast('取得に失敗しました：' + e.message); }
+  finally { archBusy = null; renderAll(); }
+}
+function patternBlue(n) {
+  const el = $('pblue');
+  el.innerHTML = `◆ パターン青 — 新規ノード検出<small>NEW SIGNAL × ${n} — タップで最新へ</small>`;
+  el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+  el.onclick = () => { el.classList.remove('show'); setTab('video'); };
+  clearTimeout(patternBlue.t); patternBlue.t = setTimeout(() => el.classList.remove('show'), 5200);
+}
+
+async function resolveChannel(src) {
+  src = src.trim();
+  let m = src.match(/(UC[\w-]{22})/); if (m) return { id: m[1] };
+  m = src.match(/@([\w.\-぀-ヿ一-鿿]+)/);
+  if (m) {
+    if (!state.apiKey) throw new Error('@ハンドルの解決にはAPIキーが必要です（UC... のIDなら不要）');
+    const r = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=snippet&forHandle=${encodeURIComponent('@' + m[1])}&key=${encodeURIComponent(state.apiKey)}`);
+    const d = await r.json(); const it = d.items && d.items[0];
+    if (!it) throw new Error('チャンネルが見つかりませんでした');
+    return { id: it.id, title: it.snippet.title, handle: '@' + m[1] };
+  }
+  throw new Error('URL / @ハンドル / UC... を入力してください');
+}
+
+// ---------- bulk channel setup ----------
+const CAT_MAP = { IDOL: 'IDOL', 'アイドル': 'IDOL', GAME: 'GAMING', GAMING: 'GAMING', 'ゲーム': 'GAMING', VARIETY: 'VARIETY', 'バラエティ': 'VARIETY' };
+const PALETTE = ['#22e6ff', '#FF3E9D', '#FFB800', '#00F5A0', '#B57CFF', '#FF6B35', '#3B82F6', '#F497DA', '#facc15', '#38bdf8'];
+function channelsText() {
+  return '# My Nerve Tube Net channels\n# ID, @ハンドル, 表示名, カテゴリ, 色\n' +
+    state.channels.map(c => [c.id, c.handle, String(c.name).replace(/[,\t|]/g, ' '), c.category === 'GAMING' ? 'GAME' : (c.category || 'VARIETY'), c.accent || ''].join(', ')).join('\n');
+}
+async function copyText(t, msg) {
+  try { await navigator.clipboard.writeText(t); toast(msg); }
+  catch (e) { $('bulkTxt').value = t; openSetup(); toast('下の欄のテキストを選択してコピーしてください'); }
+}
+function openSetup() {
+  $('bulkKey').value = state.apiKey || ''; $('bulkMsg').textContent = '';
+  $('setupModal').classList.add('show');
+}
+async function parseBulk(text) {
+  const out = [], errs = [], seen = new Set();
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim(); if (!line || line.startsWith('#')) continue;
+    const f = line.split(/\s*[,\t|，、]\s*/).map(x => x.trim()).filter(Boolean);
+    try {
+      const r = await resolveChannel(f[0]);
+      if (seen.has(r.id)) continue; seen.add(r.id);
+      let handle = r.handle || '', name = '', cat = 'VARIETY', color = '';
+      f.slice(1).forEach(x => {
+        if (/^@/.test(x)) handle = x;
+        else if (/^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(x)) color = x;
+        else if (CAT_MAP[x.toUpperCase()] || CAT_MAP[x]) cat = CAT_MAP[x.toUpperCase()] || CAT_MAP[x];
+        else if (!name) name = x;
+      });
+      if (!handle && /^@/.test(f[0])) handle = f[0];
+      name = name || r.title || handle || r.id;
+      out.push({ id: r.id, handle: handle || '@' + r.id.slice(2, 10), name, fullName: r.title || name, category: cat, accent: color || PALETTE[out.length % PALETTE.length] });
+    } catch (e) { errs.push(`・${line.slice(0, 40)} → ${e.message}`); }
+  }
+  return { out, errs };
+}
+async function runBulk() {
+  const key = $('bulkKey').value.trim();
+  if (key !== (state.apiKey || '')) { state.apiKey = key; store.set('aether_yt_api_key_v1', key); renderCfg(); }
+  const txt = $('bulkTxt').value;
+  if (!txt.trim()) return toast('チャンネル一覧を貼り付けてください');
+  $('bulkGo').disabled = true; $('bulkMsg').textContent = '解析中…';
+  try {
+    const { out, errs } = await parseBulk(txt);
+    if (!out.length) { $('bulkMsg').textContent = '登録できるチャンネルがありませんでした。\n' + errs.join('\n'); return; }
+    const mode = document.querySelector('input[name=bulkMode]:checked').value;
+    if (mode === 'replace') state.channels = out;
+    else out.forEach(c => { const i = state.channels.findIndex(x => x.id === c.id); if (i >= 0) state.channels[i] = c; else state.channels.push(c); });
+    store.set('aether_channels_v1', state.channels);
+    state.sel = 'ALL'; state.page = 1;
+    $('bulkMsg').textContent = `${out.length} チャンネルを登録しました。動画を同期しています…` + (errs.length ? `\n読み込めなかった行：\n${errs.join('\n')}` : '');
+    renderAll(); renderCfg();
+    await sync(false);
+    if (!errs.length) setTimeout(() => $('setupModal').classList.remove('show'), 600);
+    $('bulkTxt').value = '';
+  } finally { $('bulkGo').disabled = false; }
+}
+
+function renderCfg() {
+  const on = !!state.apiKey;
+  $('apiState').textContent = on ? 'API v3 LIVE' : 'PRESET+RSS'; $('apiKey').value = state.apiKey; $('linkTxt').textContent = on ? 'API v3 LINK' : 'PRESET LINK';
+  $('sLens').value = state.prefs.lens; $('sPar').checked = state.prefs.parallax; $('sLabel').value = state.prefs.labels; $('sDensity').value = String(state.prefs.density);
+  $('chList').innerHTML = state.channels.map(c => `<div class="it"><div style="display:flex;gap:10px;align-items:center;min-width:0"><span class="sw" style="background:${c.accent || '#22e6ff'}"></span><div style="min-width:0"><div>${esc(c.fullName || c.name)}</div><div class="meta">${esc(c.handle)} • ${esc(c.id)} • ${c.category || '-'}</div></div></div><button class="del" data-d="${esc(c.id)}">切断</button></div>`).join('');
+  $('chList').querySelectorAll('.del').forEach(b => b.onclick = () => {
+    const c = chOf(b.dataset.d); if (!confirm(`「${c.name}」を切断しますか？`)) return;
+    state.channels = state.channels.filter(x => x.id !== b.dataset.d); if (state.sel === b.dataset.d) state.sel = 'ALL';
+    store.set('aether_channels_v1', state.channels); renderAll(); renderCfg(); toast('ハブを切断しました');
+  });
+}
+function exportData() {
+  const data = { app: 'my-nerve-tube-net', version: 3, exportedAt: new Date().toISOString(), channels: state.channels, savedIds: state.savedIds, watchedIds: state.watchedIds, history: state.history, progress: state.progress, prefs: state.prefs, videos: state.videos };
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' }));
+  a.download = `nerve-tube-backup-${new Date().toISOString().slice(0, 10)}.json`; document.body.appendChild(a); a.click(); a.remove();
+  toast('バックアップを書き出しました');
+}
+function importData(file) {
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const d = JSON.parse(r.result); if (!d || !Array.isArray(d.channels)) throw 0;
+      if (!confirm('現在のデータをバックアップの内容で置き換えますか？')) return;
+      state.channels = d.channels; state.savedIds = d.savedIds || []; state.watchedIds = d.watchedIds || []; state.history = d.history || []; state.progress = d.progress || {};
+      if (Array.isArray(d.videos)) state.videos = d.videos; if (d.prefs) state.prefs = Object.assign({}, DEFAULT_PREFS, d.prefs);
+      [['aether_channels_v1', state.channels], ['aether_saved_v1', state.savedIds], ['aether_watched_v1', state.watchedIds], ['aether_history_v1', state.history], ['aether_progress_v1', state.progress], ['aether_videos_v1', state.videos]].forEach(([k, v]) => store.set(k, v));
+      savePrefs(); applyPrefs(); renderAll(); renderCfg(); toast('バックアップを読み込みました');
+    } catch (e) { toast('読み込めないファイルです'); }
+  };
+  r.readAsText(file);
+}
+function applyPrefs() {
+  document.body.classList.toggle('nofx', !state.prefs.fx);
+  $('fxBtn').textContent = state.prefs.fx ? 'FX: ON' : 'FX: OFF'; $('fxBtn').classList.toggle('on', state.prefs.fx);
+  $('rotBtn').classList.toggle('on', state.prefs.autoRot);
+  $('labelBtn').textContent = 'LABEL: ' + state.prefs.labels.toUpperCase();
+  $('pAuto').textContent = 'AUTO-NEXT: ' + (state.prefs.autoNext ? 'ON' : 'OFF'); $('pAuto').classList.toggle('ok', state.prefs.autoNext);
+}
+
+// =============================================================================
+// 9. EVENTS
+// =============================================================================
+const anyModal = () => ['playerModal', 'cfgModal', 'helpModal', 'setupModal', 'magiModal'].some(m => $(m).classList.contains('show'));
+function initEvents() {
+  let qTimer;
+  $('q').addEventListener('input', e => {
+    state.q = e.target.value; state.page = 1; clearTimeout(qTimer);
+    qTimer = setTimeout(() => {
+      renderStage();
+      if (state.mode === 'nerve' && state.q.trim()) {
+        const first = net.vids.find(n => n.match);
+        if (first) { inspect(first.video, true); net.ripples.push({ x: net.cx, y: net.cy, r: 10, a: .5 }); }
+        syslog(`QUERY "${state.q.trim()}" >> ${net.vids.filter(n => n.match).length} recalled`);
+      }
+    }, 220);
+  });
+  $('q').addEventListener('keydown', e => { if (e.key === 'Enter') { e.target.blur(); if (state.inspected && state.q.trim()) openPlayer(state.inspected); } });
+  $('qClear').onclick = () => { $('q').value = ''; state.q = ''; renderStage(); };
+  const setMode = m => { state.mode = m; state.page = 1; $('vNerve').classList.toggle('on', m === 'nerve'); $('vGrid').classList.toggle('on', m === 'grid'); showTip(null); renderStage(); };
+  $('vNerve').onclick = () => setMode('nerve'); $('vGrid').onclick = () => setMode('grid');
+  $('sortSel').onchange = e => { state.sortBy = e.target.value; state.page = 1; renderStage(); };
+  $('hideW').onchange = e => { state.hideWatched = e.target.checked; state.page = 1; renderStage(); };
+  $('prevBtn').onclick = () => { if (state.page > 1) { state.page--; renderStage(); } };
+  $('nextBtn').onclick = () => { if (state.page < state.totalPages) { state.page++; renderStage(); } };
+  $('pulseBtn').onclick = pulseWave;
+  $('rotBtn').onclick = () => { state.prefs.autoRot = !state.prefs.autoRot; savePrefs(); applyPrefs(); };
+  $('fxBtn').onclick = () => { state.prefs.fx = !state.prefs.fx; savePrefs(); applyPrefs(); };
+  const cycleLabel = () => { const o = ['auto', 'all', 'off']; state.prefs.labels = o[(o.indexOf(state.prefs.labels) + 1) % 3]; savePrefs(); applyPrefs(); };
+  $('labelBtn').onclick = cycleLabel;
+  if (IS_TOUCH && 'DeviceOrientationEvent' in window) { $('tiltBtn').style.display = ''; $('tiltBtn').onclick = toggleTilt; }
+  $('syncBtn').onclick = () => sync(false);
+  $('helpBtn').onclick = () => $('helpModal').classList.add('show');
+  $('helpClose').onclick = () => $('helpModal').classList.remove('show');
+
+  $('insPlay').onclick = () => state.inspected && openPlayer(state.inspected);
+  $('insThumbBox').onclick = () => state.inspected && openPlayer(state.inspected);
+  $('insTitle').onclick = () => state.inspected && openPlayer(state.inspected);
+  $('insSave').onclick = () => state.inspected && toggleSave(state.inspected);
+  $('insWatch').onclick = () => state.inspected && toggleWatched(state.inspected);
+  $('insShare').onclick = () => state.inspected && share(state.inspected);
+  $('insClose').onclick = clearInspect;
+  $('matrix').addEventListener('click', e => {
+    const mg = e.target.closest('[data-magi]');
+    if (mg) { if (mg.dataset.magi === 'run') runMagi(); else { state.magiOnly = !state.magiOnly; renderStage(); } return; }
+    const st = e.target.closest('.st'); if (st) { e.stopPropagation(); toggleSave(st.dataset.s); return; }
+    const card = e.target.closest('.card'); if (card) { const v = vidById(card.dataset.v); inspect(v, false); openPlayer(v.id); }
+  });
+  if (matchMedia('(hover: hover)').matches) $('matrix').addEventListener('mouseover', e => {
+    const card = e.target.closest('.card'); if (!card || card.contains(e.relatedTarget)) return;
+    const ti = card.querySelector('.ti'); if (ti) scramble(ti);
+  });
+  $('mgClose').onclick = () => { magiRun++; $('magiModal').classList.remove('show'); };
+  $('mgRe').onclick = runMagi;
+  const hop = dir => {
+    const list = currentList(); if (!list.length) return;
+    let i = list.findIndex(v => v.id === state.inspected); i = i < 0 ? 0 : (i + dir + list.length) % list.length;
+    if (state.mode === 'nerve') { const pg = Math.floor(i / nerveCap()) + 1; if (pg !== state.page) { state.page = pg; renderStage(); } }
+    inspect(list[i], true); vibrate(8);
+  };
+  $('insPrevN').onclick = () => hop(-1); $('insNextN').onclick = () => hop(1);
+
+  $('pClose').onclick = closePlayer;
+  $('pSave').onclick = () => state.playing && toggleSave(state.playing);
+  $('pPrev').onclick = () => step(-1); $('pNext').onclick = () => step(1); $('pErrNext').onclick = () => step(1);
+  $('pAuto').onclick = () => { state.prefs.autoNext = !state.prefs.autoNext; savePrefs(); applyPrefs(); };
+  $('pShare').onclick = () => state.playing && share(state.playing);
+  $('pWarnTry').onclick = () => state.playing && openPlayer(state.playing, { keepQueue: true, force: true });
+
+  $('cfgBtn').onclick = () => { renderCfg(); $('cfgModal').classList.add('show'); };
+  $('cfgClose').onclick = () => $('cfgModal').classList.remove('show');
+  ['playerModal', 'cfgModal', 'helpModal', 'setupModal'].forEach(id => $(id).addEventListener('click', e => { if (e.target.id === id) id === 'playerModal' ? closePlayer() : $(id).classList.remove('show'); }));
+  $('apiSave').onclick = () => { state.apiKey = $('apiKey').value.trim(); store.set('aether_yt_api_key_v1', state.apiKey); renderCfg(); toast(state.apiKey ? 'APIキー保存 — 同期開始' : 'APIキーをクリア'); if (state.apiKey) sync(false); };
+  $('sLens').oninput = e => { state.prefs.lens = +e.target.value; savePrefs(); };
+  $('sPar').onchange = e => { state.prefs.parallax = e.target.checked; savePrefs(); };
+  $('sLabel').onchange = e => { state.prefs.labels = e.target.value; savePrefs(); applyPrefs(); };
+  $('sDensity').onchange = e => { state.prefs.density = +e.target.value; savePrefs(); state.page = 1; renderStage(); };
+  $('nAdd').onclick = async () => {
+    try {
+      $('nAdd').disabled = true;
+      const r = await resolveChannel($('nSrc').value);
+      if (state.channels.some(c => c.id === r.id)) throw new Error('既に登録済みです');
+      const name = $('nName').value.trim() || r.title || r.handle || r.id;
+      const palette = ['#22e6ff', '#00ffa3', '#ff8a3d', '#c084fc', '#ff2e63', '#facc15', '#38bdf8', '#f472b6'];
+      state.channels.push({ id: r.id, handle: r.handle || '@' + name.replace(/\s+/g, ''), name, fullName: r.title || name, category: $('nCat').value, accent: palette[state.channels.length % palette.length] });
+      store.set('aether_channels_v1', state.channels); $('nSrc').value = ''; $('nName').value = '';
+      renderAll(); renderCfg(); toast(`「${name}」を追加 — 同期します`);
+      const prevSel = state.sel; state.sel = r.id; await sync(true); state.sel = prevSel; renderAll();
+    } catch (e) { toast(e.message || '追加できませんでした'); } finally { $('nAdd').disabled = false; }
+  };
+  $('expBtn').onclick = exportData; $('impBtn').onclick = () => $('impFile').click();
+  $('impFile').onchange = e => { if (e.target.files[0]) importData(e.target.files[0]); e.target.value = ''; };
+  $('clrHist').onclick = () => { if (!confirm('視聴履歴と続きから再生の位置を消去しますか？')) return; state.history = []; state.progress = {}; store.set('aether_history_v1', []); store.set('aether_progress_v1', {}); renderAll(); toast('履歴を消去しました'); };
+  $('resetBtn').onclick = () => { if (!confirm('登録チャンネルと取得済みの動画リストをすべて削除しますか？（ストック・履歴は残ります）')) return; state.channels = []; state.videos = []; state.sel = 'ALL'; store.set('aether_channels_v1', []); store.set('aether_videos_v1', []); renderAll(); renderCfg(); toast('すべてのチャンネルを削除しました'); };
+  $('openSetup').onclick = () => { $('cfgModal').classList.remove('show'); openSetup(); };
+  $('copyChannels').onclick = () => copyText(channelsText(), 'チャンネル一覧をコピーしました');
+  $('setupClose').onclick = () => $('setupModal').classList.remove('show');
+  $('bulkCopy').onclick = () => copyText(channelsText(), '現在の登録をコピーしました');
+  $('bulkGo').onclick = runBulk;
+
+  window.addEventListener('keydown', e => {
+    const tag = e.target.tagName;
+    if (e.key === 'Escape') { if ($('playerModal').classList.contains('show')) closePlayer(); $('cfgModal').classList.remove('show'); $('helpModal').classList.remove('show'); $('setupModal').classList.remove('show'); magiRun++; $('magiModal').classList.remove('show'); if (tag === 'INPUT' || tag === 'TEXTAREA') e.target.blur(); return; }
+    if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || e.metaKey || e.ctrlKey || e.altKey) return;
+    const playing = $('playerModal').classList.contains('show');
+    const k = e.key.toLowerCase();
+    if (playing) { if (k === 'n') step(1); else if (k === 'p') step(-1); else if (k === 's') toggleSave(state.playing); return; }
+    if (anyModal()) return;
+    if (e.key === '/') { e.preventDefault(); $('q').focus(); }
+    else if (e.key === '?') $('helpModal').classList.add('show');
+    else if (e.key === 'ArrowRight') $('nextBtn').click();
+    else if (e.key === 'ArrowLeft') $('prevBtn').click();
+    else if (e.key === ' ' && state.inspected) { e.preventDefault(); openPlayer(state.inspected); }
+    else if (k === 's' && state.inspected) toggleSave(state.inspected);
+    else if (k === 'w' && state.inspected) toggleWatched(state.inspected);
+    else if (k === 'g') setMode(state.mode === 'nerve' ? 'grid' : 'nerve');
+    else if (k === 'l') cycleLabel();
+    else if (/^[1-8]$/.test(e.key)) setTab(TABS[+e.key - 1].key);
+    else if (k === 'm') runMagi();
+  });
+  let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(renderAll, 150); });
+  window.addEventListener('pagehide', saveProgress);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) saveProgress(); });
+  setInterval(() => { $('clock').textContent = new Date(Date.now() + 9 * 3600e3).toISOString().slice(11, 19) + ' JST'; }, 1000);
+  const amb = ['GHOST-LINE integrity 99.7%', 'barrier maze: nominal', 'thermoptic cache flushed', 'packet drift corrected', 'synapse latency 4ms', 'tachikoma relay: idle'];
+  setInterval(() => { if (state.prefs.fx && !document.hidden) syslog(amb[Math.floor(Math.random() * amb.length)]); }, 7000);
+}
+
+// =============================================================================
+// 10. BOOT
+// =============================================================================
+function boot() {
+  const lines = [
+    '<span class="c">MY NERVE TUBE NET</span> // GHOST ARCHIVE TUNER  v5.0',
+    '> MAGI SYSTEM: MELCHIOR·1 / BALTHASAR·2 / CASPER·3 ... ONLINE',
+    '> initializing cyberbrain interface ........ OK',
+    `> mounting ${state.channels.length} hubs / ${state.videos.length} memory nodes ... OK`,
+    IS_FILE ? '<span class="w">> WARNING: file:// origin — embed referrer unavailable (ERR 153)</span>' : `> embedder identity: ${location.origin} ... OK`,
+    '> <span class="c">WIRED CONNECTION ESTABLISHED.</span> DIVE.'
+  ];
+  const el = $('bootTxt'); let i = 0;
+  const done = () => { $('boot').classList.add('out'); setTimeout(() => $('boot').remove(), 700); };
+  $('boot').onclick = done;
+  (function next() { if (i < lines.length) { el.innerHTML += lines[i++] + '\n'; setTimeout(next, 130); } else setTimeout(done, 380); })();
+}
+['gesturestart', 'gesturechange'].forEach(t => document.addEventListener(t, e => e.preventDefault(), { passive: false }));
+window.addEventListener('DOMContentLoaded', () => {
+  buildDust(); initEvents(); applyPrefs(); renderCfg(); renderAll();
+  syslog('NERVE NET online', 'ok');
+  if (IS_FILE) { syslog('file:// — 埋め込み再生にはWeb配信が必要', 'wr'); $('linkChip').classList.add('warn'); }
+  boot();
+  requestAnimationFrame(frame);
+  // deep link: #v=VIDEO_ID
+  const m = location.hash.match(/^#v=([\w-]{11})/);
+  if (m && vidById(m[1])) setTimeout(() => { inspect(vidById(m[1]), true); openPlayer(m[1]); }, 900);
+  // auto sync when an API key exists and the last sync is older than 3h
+  if (state.apiKey && state.channels.length && Date.now() - store.get('aether_lastsync_v1', 0) > 3 * 3600e3) setTimeout(() => sync(true), 1500);
+  if (!state.channels.length) setTimeout(openSetup, 1100);
+  // PWA offline shell (only when served over http(s) as a top-level page)
+  if ('serviceWorker' in navigator && !IN_FRAME && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});
+});
+</script>
+</body>
+</html>
