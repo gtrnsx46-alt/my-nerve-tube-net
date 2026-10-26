@@ -521,9 +521,9 @@ body.playing #deco{visibility:hidden}
 .tdesc{font-size:11px;color:var(--mute);line-height:1.7;min-height:3.4em;margin:0}
 @media (max-width:600px){ #themeModal{align-items:stretch;justify-content:center} .tgrid{grid-template-columns:repeat(2,minmax(0,1fr))} }
 </style>
-<style id="themeCss">[data-theme=nerve] #deco{background:none;background-color:#010409}
-.tpv[data-tp=nerve]{background:none;background-color:#010409}
-
+<style id="themeCss">[data-theme=nerve] #deco{background:radial-gradient(ellipse 90% 70% at 50% 40%,#061648 0%,#020820 55%,#01030d 100%);background-color:#01030d}
+.tpv[data-tp=nerve]{background:radial-gradient(ellipse 90% 70% at 50% 40%,#061648 0%,#020820 55%,#01030d 100%);background-color:#01030d}
+[data-theme=nerve] .frame{background:rgba(3,9,36,.74);border-color:rgba(214,228,255,.3);clip-path:polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,12px 100%,0 calc(100% - 12px))}[data-theme=nerve] .frame::before,[data-theme=nerve] .frame::after{border-color:#dce8ff;border-width:1px;width:14px;height:14px}[data-theme=nerve] header,[data-theme=nerve] footer{background:linear-gradient(180deg,rgba(2,7,28,.94),rgba(2,7,28,.62));border-color:rgba(200,222,255,.22)}[data-theme=nerve] .tab{background:rgba(12,30,100,.5);border-color:rgba(200,222,255,.3);color:#c6d8ff}[data-theme=nerve] .tab.on,[data-theme=nerve] .btn.pri,[data-theme=nerve] .q-tag,[data-theme=nerve] .seg button.on{background:linear-gradient(180deg,#3a78ff,#1c44c4);color:#fff;border-color:#dce8ff;box-shadow:0 0 16px rgba(64,132,255,.55)}[data-theme=nerve] .tab.on .ct{background:rgba(255,255,255,.18)}[data-theme=nerve] .logo .t{text-shadow:0 0 14px rgba(64,132,255,.9);letter-spacing:.2em}[data-theme=nerve] .chip{border-color:rgba(200,222,255,.3);background:rgba(12,30,100,.35);color:#cfe0ff}[data-theme=nerve] .hub.on{background:linear-gradient(90deg,rgba(64,132,255,.28),transparent);border-color:rgba(200,222,255,.6)}
 [data-theme=tanaami] #deco{background:url('themes/tanaami.webp') 0 0/760px 760px repeat;background-color:#1a0820}
 .tpv[data-tp=tanaami]{background:url('themes/tanaami.webp') 0 0/760px 760px repeat;background-color:#1a0820}
 [data-theme=tanaami] #deco .d1{display:block;background:radial-gradient(ellipse 44% 46% at 50% 52%,rgba(26,6,32,.6),rgba(26,6,32,.25) 60%,transparent 80%);}
@@ -701,6 +701,7 @@ body.playing #deco{visibility:hidden}
       <button class="fbtn" id="nextBtn">NEXT ▶</button>
     </div>
     <button class="fbtn" id="labelBtn" title="ラベル表示 (L)">LABEL: AUTO</button>
+    <button class="fbtn" id="shapeBtn" title="データシェイプ：球・グリッド・サラウンド (H)">SHAPE: SPHERE</button>
     <button class="fbtn" id="tiltBtn" style="display:none">TILT</button>
     <button class="fbtn" id="pulseBtn">⚡ PULSE</button>
     <button class="fbtn on" id="rotBtn">AUTO-ROT</button>
@@ -901,6 +902,7 @@ body.playing #deco{visibility:hidden}
         <span><kbd>W</kbd></span><span>視聴済み切替</span>
         <span><kbd>G</kbd></span><span>NERVE / MATRIX 切替</span>
         <span><kbd>L</kbd></span><span>ラベル表示切替</span>
+        <span><kbd>H</kbd></span><span>データシェイプ切替（球・グリッド・サラウンド）</span>
         <span><kbd>T</kbd></span><span>外観テーマを選ぶ</span>
         <span><kbd>[</kbd> <kbd>]</kbd></span><span>左 / 右パネルの表示切替（PC）</span>
         <span><kbd>1</kbd>〜<kbd>7</kbd></span><span>タブ切替</span>
@@ -951,7 +953,7 @@ const store = {
   get(k, f) { try { const r = localStorage.getItem(k); return r ? JSON.parse(r) : f; } catch (e) { return f; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { if (!store._warned) { store._warned = true; setTimeout(() => toast('⚠ 端末の保存容量が上限です。一部のデータが保存されていません'), 0); } return false; } }
 };
-const DEFAULT_PREFS = { theme: 'nerve', railOpen: true, insOpen: true, chBarOpen: null, iosMode: 'tap', searchOpen: null, diveFull: true, rot: 'chirp', rotVol: 0.5, cc: 'off', sfx: true, vol: 0.6, dive: true, shorts: 'exclude', latestDays: 30, newDays: 3, newSinceVisit: true, lens: 1, parallax: true, labels: 'auto', density: 1, autoNext: true, autoRot: true, fx: true, eco: 'auto' };
+const DEFAULT_PREFS = { theme: 'nerve', railOpen: true, insOpen: true, chBarOpen: null, iosMode: 'tap', searchOpen: null, diveFull: true, rot: 'chirp', rotVol: 0.5, cc: 'off', sfx: true, vol: 0.6, dive: true, shorts: 'exclude', latestDays: 30, newDays: 3, newSinceVisit: true, lens: 1, parallax: true, labels: 'auto', shape: 'sphere', density: 1, autoNext: true, autoRot: true, fx: true, eco: 'auto' };
 const state = {
   channels: store.get('aether_channels_v1', []),
   videos: store.get('aether_videos_v1', []),
@@ -1106,7 +1108,7 @@ function resize() {
   ctx.setTransform(net.dpr, 0, 0, net.dpr, 0, 0);
   const st = $('stage').getBoundingClientRect(), ins = $('inspector').getBoundingClientRect();
   net.cx = st.left + st.width / 2; net.cy = st.top + st.height / 2;
-  net.R = Math.max(110, Math.min(st.width, st.height) * 0.4);
+  net.R = Math.max(110, Math.min(st.width, st.height) * 0.4); net.stW = st.width; net.stH = st.height;
   net.scaleR = clamp(Math.min(st.width, st.height) / 560, 0.7, 1.3);
   net.rightEdge = isMobile() ? net.w : ins.left;
 }
@@ -1133,7 +1135,7 @@ function buildNet(items) {
   const cnt = {}; items.forEach(v => cnt[v.channelId] = (cnt[v.channelId] || 0) + 1);
   net.hubs = hubChs.map((c, i) => {
     const p = single ? [0, 0, 0] : fib(i, hubChs.length).map(x => x * 0.74);
-    return newBody({ type: 'hub', id: 'HUB_' + c.id, ch: c, channelId: c.id, accent: c.accent || '#22e6ff', x: p[0], y: p[1], z: p[2], r: single ? 30 : 20, phase: i, count: cnt[c.id] || 0 });
+    return newBody({ type: 'hub', id: 'HUB_' + c.id, ch: c, channelId: c.id, accent: c.accent || '#22e6ff', x: p[0], y: p[1], z: p[2], bx: p[0], by: p[1], bz: p[2], r: single ? 30 : 20, phase: i, count: cnt[c.id] || 0 });
   });
   const hubMap = Object.fromEntries(net.hubs.map(h => [h.channelId, h])), idx = {};
   net.vids = items.map((v, i) => {
@@ -1151,7 +1153,7 @@ function buildNet(items) {
     }
     const vf = clamp((Math.log10(Math.max(1000, v.views || 1000)) - 4) / 2.8, 0, 1);
     thumb(v.id);
-    return newBody({ type: 'vid', id: v.id, video: v, title: cleanTitle(v.title), channelId: v.channelId, accent: chOf(v.channelId).accent || '#22e6ff', x: pos[0], y: pos[1], z: pos[2], vf, phase: r() * 6.28, match: true, wrap: null });
+    return newBody({ type: 'vid', id: v.id, video: v, title: cleanTitle(v.title), channelId: v.channelId, accent: chOf(v.channelId).accent || '#22e6ff', x: pos[0], y: pos[1], z: pos[2], bx: pos[0], by: pos[1], bz: pos[2], vf, phase: r() * 6.28, match: true, wrap: null });
   });
   net.links = [];
   net.hubs.forEach(a => net.hubs.filter(b => b !== a).map(b => [b, Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z)]).sort((p, q) => p[1] - q[1]).slice(0, 2)
@@ -1160,6 +1162,7 @@ function buildNet(items) {
   for (let i = 0; i + 1 < net.vids.length; i += 3) { const a = net.vids[i], b = net.vids[(i * 7 + 5) % net.vids.length]; if (a !== b && a.channelId !== b.channelId) net.links.push({ a, b, kind: 'x' }); }
   net.pulses = []; for (let i = 0; i < Math.min(60, net.links.length * 1.5); i++) spawnPulse();
   net.vids.forEach(n => n.match = matchQ(n.video));
+  shapeTargets(); [...net.hubs, ...net.vids].forEach(n => { n.x = n.tx; n.y = n.ty; n.z = n.tz; });
   $('nodeChip').textContent = `NODES ${net.vids.length} / SYN ${net.links.length}`;
 }
 function spawnPulse() { if (!net.links.length) return; net.pulses.push({ l: net.links[Math.floor(Math.random() * net.links.length)], t: Math.random(), sp: 0.004 + Math.random() * 0.012, rev: Math.random() < 0.5 }); }
@@ -1213,6 +1216,7 @@ function separate() {
 }
 // geometry of a video card for the current frame
 function cardGeom(n) {
+  if (NV()) return nvGeom(n);
   const p = n.p;
   if (p.z < -0.38) return { dot: true, x: p.x, y: p.y, r: 2.2 + n.vf * 1.6 };
   const w = (46 + n.vf * 24) * Math.max(net.scaleR, isMobile() ? 0.95 : 0) * p.k * net.zoom * p.mag * (isMobile() ? 1.12 : 1);
@@ -1226,7 +1230,7 @@ function pick(mx, my, touch) {
   if (touch) {
     let best = null, bd = 1e9;
     for (const n of net.order) {
-      if (n.type === 'hub') { const r = n.r * n.p.k * net.scaleR * net.zoom * n.p.mag + 14; const d = Math.hypot(mx - n.p.x, my - n.p.y); if (d < r && d / r < bd) { bd = d / r; best = n; } continue; }
+      if (n.type === 'hub') { const r = hubR(n) + 14; const d = Math.hypot(mx - n.p.x, my - n.p.y); if (d < r && d / r < bd) { bd = d / r; best = n; } continue; }
       const g = n.g; if (!g || g.dot || n.p.z < -0.2) continue;
       const cx = g.x + g.w / 2, cy = g.y + g.h / 2, hw = g.w / 2 + 16, hh = g.h / 2 + 16;
       const dx = Math.abs(mx - cx) / hw, dy = Math.abs(my - cy) / hh;
@@ -1236,7 +1240,7 @@ function pick(mx, my, touch) {
   }
   for (let i = net.order.length - 1; i >= 0; i--) {
     const n = net.order[i];
-    if (n.type === 'hub') { const r = n.r * n.p.k * net.scaleR * net.zoom * n.p.mag + 8; if (Math.hypot(mx - n.p.x, my - n.p.y) < r) return n; continue; }
+    if (n.type === 'hub') { const r = hubR(n) + 8; if (Math.hypot(mx - n.p.x, my - n.p.y) < r) return n; continue; }
     const g = n.g; if (!g) continue;
     const pad = IS_TOUCH ? 10 : 4;
     if (g.dot) { if (Math.hypot(mx - g.x, my - g.y) < 10) return n; }
@@ -1261,7 +1265,7 @@ function wrapTitle(n, maxW, fs) {
 }
 
 // ===== THEMES =====
-const THEMES = [{"id": "nerve", "name": "NERVE NET", "sub": "デフォルト", "desc": "攻殻機動隊展の電脳ネットワークビジュアライザー。シアンとフォスファーグリーンの情報の海。", "vars": {"--bg": "#010409", "--c1": "#22e6ff", "--c1-rgb": "34,230,255", "--c2": "#00ffa3", "--c2-rgb": "0,255,163", "--warn": "#ff8a3d", "--alert": "#ff2e63", "--txt": "#cfeaf2", "--mute": "#6b93a2", "--pn-rgb": "2,10,18", "--on-c1": "#001014", "--hi": "#eaffff", "--inp-bg": "#000", "--vig": "rgba(0,0,0,.72)", "--disp": "'Orbitron','JetBrains Mono',sans-serif", "--jp": "'Noto Sans JP',sans-serif", "--mono": "'JetBrains Mono',ui-monospace,monospace"}, "canvas": {"c1": "34,230,255", "c2": "0,255,163", "dust": "160,240,255", "hi": "234,255,255", "pn": "2,10,18", "bg0": "6,40,56", "bg1": "2,14,24", "bg2": "1,4,9", "a": 1}, "fonts": "", "sw": ["#010409", "#22e6ff", "#00ffa3", "#ff8a3d"], "light": false}, {"id": "tanaami", "name": "記憶の冒険", "sub": "田名網敬一 モチーフ", "desc": "まつ毛の目玉、極彩色の骸骨、白い顔、唇、放射光線、金魚、捻じれた松、太鼓橋、戦闘機、アメコミの擬音を画面いっぱいにコラージュ。ギチギチに詰まった不穏なサイケデリア。", "vars": {"--bg": "#1a0820", "--c1": "#ffe600", "--c1-rgb": "255,230,0", "--c2": "#ff2d8a", "--c2-rgb": "255,45,138", "--warn": "#00c2ff", "--alert": "#ff2a2a", "--txt": "#fff6e0", "--mute": "#e0a7d0", "--pn-rgb": "22,6,28", "--on-c1": "#1a0010", "--hi": "#fffaeb", "--inp-bg": "#12041a", "--vig": "rgba(30,0,40,.45)", "--disp": "'Bangers','Dela Gothic One',sans-serif", "--jp": "'Dela Gothic One','Noto Sans JP',sans-serif", "--mono": "'JetBrains Mono',ui-monospace,monospace"}, "canvas": {"c1": "255,230,0", "c2": "255,45,138", "dust": "255,250,220", "hi": "255,250,235", "pn": "22,6,28", "bg0": "40,10,50", "bg1": "26,6,32", "bg2": "16,4,20", "a": 0.5}, "fonts": "Bangers&family=Dela+Gothic+One", "sw": ["#ffe600", "#ff2d8a", "#00c2ff", "#8cff2e"], "light": false}, {"id": "sorayama", "name": "セクシーロボット", "sub": "空山基 モチーフ", "desc": "富豪の秘密の地下研究室を覗いてしまった夜。ケーブルに繋がれたバイザー顔のクローム女体ロボが中央に立ち、両脇の光るショーケースが奥へ続く。鏡面の映り込みとスターバーストの輝き。", "vars": {"--bg": "#07080c", "--c1": "#e6ebf2", "--c1-rgb": "230,235,242", "--c2": "#c8ff3a", "--c2-rgb": "200,255,58", "--warn": "#e8c15a", "--alert": "#ff4f7a", "--txt": "#e9edf3", "--mute": "#8b93a1", "--pn-rgb": "10,11,16", "--on-c1": "#0b0c10", "--hi": "#ffffff", "--inp-bg": "#05060a", "--vig": "rgba(0,0,0,.6)", "--disp": "'Michroma','Orbitron',sans-serif", "--jp": "'Noto Sans JP',sans-serif", "--mono": "'JetBrains Mono',ui-monospace,monospace"}, "canvas": {"c1": "230,235,242", "c2": "200,255,58", "dust": "210,220,235", "hi": "255,255,255", "pn": "10,11,16", "bg0": "40,46,64", "bg1": "12,14,20", "bg2": "4,5,8", "a": 0.38}, "fonts": "Michroma", "sw": ["#0b0c10", "#e6ebf2", "#e8c15a", "#c8ff3a"], "light": false}, {"id": "taniho", "name": "生命の極彩", "sub": "谷保玲奈 モチーフ", "desc": "燃えるような朱と橙の地に、紫陽花・貝・蜻蛉がうねり増殖する。岩絵具のような重なりと南洋的な鮮烈さ。", "vars": {"--bg": "#2a0905", "--c1": "#ff8a3d", "--c1-rgb": "255,138,61", "--c2": "#8fbaff", "--c2-rgb": "143,186,255", "--warn": "#ff5c9a", "--alert": "#ff3030", "--txt": "#fff1e6", "--mute": "#d9a68c", "--pn-rgb": "42,12,8", "--on-c1": "#1f0700", "--hi": "#fff4eb", "--inp-bg": "#1c0503", "--vig": "rgba(30,0,10,.6)", "--disp": "'Shippori Mincho B1',serif", "--jp": "'Shippori Mincho B1','Noto Serif JP',serif", "--mono": "'JetBrains Mono',ui-monospace,monospace"}, "canvas": {"c1": "255,150,80", "c2": "150,195,255", "dust": "255,220,190", "hi": "255,244,235", "pn": "40,12,8", "bg0": "120,30,10", "bg1": "70,12,8", "bg2": "30,4,6", "a": 0.45}, "fonts": "Shippori+Mincho+B1:wght@600;800", "sw": ["#c2410c", "#ff5c9a", "#8fbaff", "#ffe08a"], "light": false}, {"id": "yoshizawa", "name": "水と身体", "sub": "吉澤舞子 モチーフ", "desc": "淡い青磁色の水中に、ほどけた手足と金の輪、泡と流線が漂う。変形パネルのような柔らかな輪郭。", "vars": {"--bg": "#d9ebe3", "--c1": "#2c7a6e", "--c1-rgb": "44,122,110", "--c2": "#b8901c", "--c2-rgb": "184,144,28", "--warn": "#3b5fb0", "--alert": "#c9504a", "--txt": "#1f3b36", "--mute": "#5b857b", "--pn-rgb": "238,247,242", "--on-c1": "#f3fbf7", "--hi": "rgb(22,52,46)", "--inp-bg": "#f6fbf8", "--vig": "rgba(120,170,160,.35)", "--disp": "'Zen Old Mincho',serif", "--jp": "'Zen Old Mincho','Noto Serif JP',serif", "--mono": "'JetBrains Mono',ui-monospace,monospace"}, "canvas": {"c1": "44,122,110", "c2": "184,144,28", "dust": "60,120,110", "hi": "22,52,46", "pn": "240,248,243", "bg0": "240,250,236", "bg1": "214,236,228", "bg2": "176,212,206", "a": 0.38}, "fonts": "Zen+Old+Mincho:wght@600;900", "sw": ["#cfe7df", "#2c7a6e", "#b8901c", "#5d97c4"], "light": true}, {"id": "magi", "name": "MAGI SYSTEM", "sub": "ネルフ本部・作戦司令室", "desc": "黒とオレンジの司令室。六角グリッド、警告ストライプ、極太明朝の見出し。", "vars": {"--bg": "#0a0300", "--c1": "#ff8c1a", "--c1-rgb": "255,140,26", "--c2": "#ff3355", "--c2-rgb": "255,51,85", "--warn": "#ffd400", "--alert": "#ff1e1e", "--txt": "#ffe9d6", "--mute": "#b07a4a", "--pn-rgb": "16,6,0", "--on-c1": "#140700", "--hi": "#ffecd6", "--inp-bg": "#0a0300", "--vig": "rgba(0,0,0,.75)", "--disp": "'Noto Serif JP',serif", "--jp": "'Noto Sans JP',sans-serif", "--mono": "'JetBrains Mono',ui-monospace,monospace"}, "canvas": {"c1": "255,140,26", "c2": "255,51,85", "dust": "255,200,150", "hi": "255,236,214", "pn": "16,6,0", "bg0": "60,24,0", "bg1": "24,8,0", "bg2": "8,2,0", "a": 0.6}, "fonts": "Noto+Serif+JP:wght@900", "sw": ["#0a0300", "#ff8c1a", "#ff3355", "#ffd400"], "light": false}, {"id": "unit01", "name": "初号機", "sub": "紫と蛍光グリーン", "desc": "装甲の紫、発光する緑。暴走寸前の生体兵器のような配色。", "vars": {"--bg": "#0d0618", "--c1": "#8be33b", "--c1-rgb": "139,227,59", "--c2": "#a66bff", "--c2-rgb": "166,107,255", "--warn": "#ff8c1a", "--alert": "#ff2e63", "--txt": "#efe6ff", "--mute": "#8e7bb5", "--pn-rgb": "18,8,32", "--on-c1": "#0d1a02", "--hi": "#f4ecff", "--inp-bg": "#0a0414", "--vig": "rgba(10,0,20,.75)", "--disp": "'Orbitron','JetBrains Mono',sans-serif", "--jp": "'Noto Sans JP',sans-serif", "--mono": "'JetBrains Mono',ui-monospace,monospace"}, "canvas": {"c1": "139,227,59", "c2": "166,107,255", "dust": "210,190,255", "hi": "244,236,255", "pn": "18,8,32", "bg0": "60,20,100", "bg1": "26,10,46", "bg2": "10,4,20", "a": 0.55}, "fonts": "", "sw": ["#2a1150", "#8be33b", "#a66bff", "#ff8c1a"], "light": false}, {"id": "matrix", "name": "デジタル・レイン", "sub": "緑の文字が降る", "desc": "黒地に降り注ぐ緑のカタカナ。端末の向こうの仮想現実。", "vars": {"--bg": "#000500", "--c1": "#39ff6a", "--c1-rgb": "57,255,106", "--c2": "#b8ffcc", "--c2-rgb": "184,255,204", "--warn": "#ffd000", "--alert": "#ff4040", "--txt": "#c8ffd4", "--mute": "#3f8f55", "--pn-rgb": "0,10,2", "--on-c1": "#001a06", "--hi": "#d8ffe2", "--inp-bg": "#000", "--vig": "rgba(0,0,0,.8)", "--disp": "'VT323',monospace", "--jp": "'Noto Sans JP',sans-serif", "--mono": "'Share Tech Mono','JetBrains Mono',monospace"}, "canvas": {"c1": "57,255,106", "c2": "184,255,204", "dust": "120,255,150", "hi": "216,255,226", "pn": "0,10,2", "bg0": "0,40,10", "bg1": "0,14,4", "bg2": "0,4,0", "a": 0.55}, "fonts": "VT323&family=Share+Tech+Mono", "sw": ["#000500", "#39ff6a", "#b8ffcc", "#0b3d17"], "light": false}, {"id": "neotokyo", "name": "ネオ東京", "sub": "赤いバイクと崩壊する都市", "desc": "黒と鮮烈な赤。スピード線、網点、極太ゴシック。80年代劇場アニメのサイバーパンク。", "vars": {"--bg": "#0b0000", "--c1": "#ff2a2a", "--c1-rgb": "255,42,42", "--c2": "#ffe14d", "--c2-rgb": "255,225,77", "--warn": "#ffffff", "--alert": "#ff0055", "--txt": "#ffeaea", "--mute": "#a35a5a", "--pn-rgb": "18,2,2", "--on-c1": "#170000", "--hi": "#fff1f1", "--inp-bg": "#0b0000", "--vig": "rgba(0,0,0,.8)", "--disp": "'Dela Gothic One',sans-serif", "--jp": "'Dela Gothic One','Noto Sans JP',sans-serif", "--mono": "'JetBrains Mono',ui-monospace,monospace"}, "canvas": {"c1": "255,60,60", "c2": "255,225,77", "dust": "255,190,190", "hi": "255,241,241", "pn": "18,2,2", "bg0": "90,0,0", "bg1": "34,0,0", "bg2": "10,0,0", "a": 0.55}, "fonts": "Dela+Gothic+One", "sw": ["#0b0000", "#ff2a2a", "#ffe14d", "#ffffff"], "light": false}, {"id": "rain", "name": "酸性雨の街", "sub": "アンバーとティールのネオン", "desc": "霧と雨に滲むネオン。琥珀色の灯りと青緑の反射。", "vars": {"--bg": "#05080a", "--c1": "#ffb347", "--c1-rgb": "255,179,71", "--c2": "#2fd6c9", "--c2-rgb": "47,214,201", "--warn": "#ff5ea8", "--alert": "#ff3b3b", "--txt": "#f3e6d0", "--mute": "#8a7a62", "--pn-rgb": "8,12,14", "--on-c1": "#1a0e00", "--hi": "#fff3e0", "--inp-bg": "#05080a", "--vig": "rgba(0,0,0,.78)", "--disp": "'Orbitron','JetBrains Mono',sans-serif", "--jp": "'Noto Sans JP',sans-serif", "--mono": "'JetBrains Mono',ui-monospace,monospace"}, "canvas": {"c1": "255,179,71", "c2": "47,214,201", "dust": "200,230,240", "hi": "255,243,224", "pn": "8,12,14", "bg0": "50,40,20", "bg1": "14,20,24", "bg2": "4,6,8", "a": 0.55}, "fonts": "", "sw": ["#05080a", "#ffb347", "#2fd6c9", "#ff5ea8"], "light": false}, {"id": "grid", "name": "THE GRID", "sub": "光るグリッドの地平", "desc": "漆黒にシアンとオレンジの光線。デジタル世界の地平線。", "vars": {"--bg": "#000208", "--c1": "#00e5ff", "--c1-rgb": "0,229,255", "--c2": "#ff8a00", "--c2-rgb": "255,138,0", "--warn": "#ffe600", "--alert": "#ff2e4d", "--txt": "#d6f8ff", "--mute": "#4f8a99", "--pn-rgb": "0,6,14", "--on-c1": "#00141a", "--hi": "#e6fbff", "--inp-bg": "#000208", "--vig": "rgba(0,0,0,.8)", "--disp": "'Orbitron','JetBrains Mono',sans-serif", "--jp": "'Noto Sans JP',sans-serif", "--mono": "'JetBrains Mono',ui-monospace,monospace"}, "canvas": {"c1": "0,229,255", "c2": "255,138,0", "dust": "160,240,255", "hi": "230,251,255", "pn": "0,6,14", "bg0": "0,40,60", "bg1": "0,10,20", "bg2": "0,2,8", "a": 0.55}, "fonts": "", "sw": ["#000208", "#00e5ff", "#ff8a00", "#003a4a"], "light": false}, {"id": "vapor", "name": "VAPOR ドリーム", "sub": "夕焼けとネオンピンク", "desc": "ピンクと紫のグラデーション、縞の太陽、マゼンタのグリッド。", "vars": {"--bg": "#1a0633", "--c1": "#ff71ce", "--c1-rgb": "255,113,206", "--c2": "#01cdfe", "--c2-rgb": "1,205,254", "--warn": "#fffb96", "--alert": "#ff3f8e", "--txt": "#fff0fb", "--mute": "#b39ddb", "--pn-rgb": "30,8,52", "--on-c1": "#2a0020", "--hi": "#fff2fb", "--inp-bg": "#140428", "--vig": "rgba(20,0,40,.6)", "--disp": "'Orbitron','JetBrains Mono',sans-serif", "--jp": "'Noto Sans JP',sans-serif", "--mono": "'JetBrains Mono',ui-monospace,monospace"}, "canvas": {"c1": "255,113,206", "c2": "1,205,254", "dust": "255,210,240", "hi": "255,242,251", "pn": "30,8,52", "bg0": "120,40,140", "bg1": "50,12,80", "bg2": "20,4,40", "a": 0.5}, "fonts": "", "sw": ["#2b0a4f", "#ff71ce", "#01cdfe", "#fffb96"], "light": false}, {"id": "wired", "name": "ワイヤード", "sub": "電線と赤い影", "desc": "灰色の空を横切る電線と電柱。地面に落ちる赤い影。ノイズまじりの静けさ。", "vars": {"--bg": "#141212", "--c1": "#e6e2dc", "--c1-rgb": "230,226,220", "--c2": "#d1262f", "--c2-rgb": "209,38,47", "--warn": "#ffcc00", "--alert": "#ff2b2b", "--txt": "#e9e6e1", "--mute": "#8a837d", "--pn-rgb": "22,20,20", "--on-c1": "#141212", "--hi": "#f4f1ec", "--inp-bg": "#0e0d0d", "--vig": "rgba(0,0,0,.7)", "--disp": "'VT323',monospace", "--jp": "'Noto Sans JP',sans-serif", "--mono": "'JetBrains Mono',ui-monospace,monospace"}, "canvas": {"c1": "230,226,220", "c2": "209,38,47", "dust": "200,195,190", "hi": "244,241,236", "pn": "22,20,20", "bg0": "70,64,62", "bg1": "34,31,30", "bg2": "14,12,12", "a": 0.55}, "fonts": "VT323", "sw": ["#2a2726", "#e6e2dc", "#d1262f", "#5d5855"], "light": false}, {"id": "ukiyoe", "name": "藍と朱", "sub": "浮世絵・和紙", "desc": "和紙の地に藍の青海波と朱の太陽。版画のような静かな配色。", "vars": {"--bg": "#efe4cf", "--c1": "#1f3a68", "--c1-rgb": "31,58,104", "--c2": "#c8392b", "--c2-rgb": "200,57,43", "--warn": "#b8860b", "--alert": "#c8392b", "--txt": "#1d1b18", "--mute": "#6f6556", "--pn-rgb": "247,240,226", "--on-c1": "#f7f0e2", "--hi": "rgb(28,26,24)", "--inp-bg": "#fbf6ea", "--vig": "rgba(120,90,50,.25)", "--disp": "'Shippori Mincho B1',serif", "--jp": "'Shippori Mincho B1','Noto Serif JP',serif", "--mono": "'JetBrains Mono',ui-monospace,monospace"}, "canvas": {"c1": "31,58,104", "c2": "200,57,43", "dust": "70,80,110", "hi": "28,26,24", "pn": "247,240,226", "bg0": "250,244,230", "bg1": "239,228,207", "bg2": "220,205,178", "a": 0.35}, "fonts": "Shippori+Mincho+B1:wght@600;800", "sw": ["#efe4cf", "#1f3a68", "#c8392b", "#b8860b"], "light": true}, {"id": "lab", "name": "ホワイト・ラボ", "sub": "明るい研究所", "desc": "白い研究室のような明るく見やすい配色。日中の閲覧に。", "vars": {"--bg": "#f2f5f8", "--c1": "#0b6bcb", "--c1-rgb": "11,107,203", "--c2": "#0a9a72", "--c2-rgb": "10,154,114", "--warn": "#d97706", "--alert": "#dc2626", "--txt": "#1e293b", "--mute": "#64748b", "--pn-rgb": "255,255,255", "--on-c1": "#ffffff", "--hi": "rgb(15,23,42)", "--inp-bg": "#ffffff", "--vig": "rgba(100,116,139,.18)", "--disp": "'Orbitron','JetBrains Mono',sans-serif", "--jp": "'Noto Sans JP',sans-serif", "--mono": "'JetBrains Mono',ui-monospace,monospace"}, "canvas": {"c1": "11,107,203", "c2": "10,154,114", "dust": "100,116,139", "hi": "15,23,42", "pn": "255,255,255", "bg0": "255,255,255", "bg1": "236,241,247", "bg2": "220,228,238", "a": 0.4}, "fonts": "", "sw": ["#f2f5f8", "#0b6bcb", "#0a9a72", "#d97706"], "light": true}];
+const THEMES = [{"id": "nerve", "name": "NERVE NET", "sub": "デフォルト", "desc": "攻殻機動隊展の巨大電脳ネットワークビジュアライザーを再現。深い青の電脳空間に、発光リングの丸窓ノード、粒子の雲、＋のきらめきが漂う。", "vars": {"--bg": "#01030d", "--c1": "#7db8ff", "--c1-rgb": "125,184,255", "--c2": "#5dffcf", "--c2-rgb": "93,255,207", "--warn": "#ff9a4d", "--alert": "#ff4f9a", "--txt": "#dce8ff", "--mute": "#7f93bf", "--pn-rgb": "3,9,36", "--on-c1": "#020818", "--hi": "#f2f8ff", "--inp-bg": "#020616", "--vig": "rgba(0,0,10,.7)", "--disp": "'Rajdhani','Orbitron',sans-serif", "--jp": "'Noto Sans JP',sans-serif", "--mono": "'JetBrains Mono',ui-monospace,monospace"}, "canvas": {"c1": "125,184,255", "c2": "93,255,207", "dust": "170,215,255", "hi": "242,248,255", "pn": "3,9,36", "bg0": "12,34,120", "bg1": "4,12,48", "bg2": "1,3,13", "a": 1, "style": "nerve"}, "fonts": "Rajdhani:wght@500;600;700", "sw": ["#01030d", "#4084ff", "#7db8ff", "#5dffcf"], "light": false}, {"id": "tanaami", "name": "記憶の冒険", "sub": "田名網敬一 モチーフ", "desc": "まつ毛の目玉、極彩色の骸骨、白い顔、唇、放射光線、金魚、捻じれた松、太鼓橋、戦闘機、アメコミの擬音を画面いっぱいにコラージュ。ギチギチに詰まった不穏なサイケデリア。", "vars": {"--bg": "#1a0820", "--c1": "#ffe600", "--c1-rgb": "255,230,0", "--c2": "#ff2d8a", "--c2-rgb": "255,45,138", "--warn": "#00c2ff", "--alert": "#ff2a2a", "--txt": "#fff6e0", "--mute": "#e0a7d0", "--pn-rgb": "22,6,28", "--on-c1": "#1a0010", "--hi": "#fffaeb", "--inp-bg": "#12041a", "--vig": "rgba(30,0,40,.45)", "--disp": "'Bangers','Dela Gothic One',sans-serif", "--jp": "'Dela Gothic One','Noto Sans JP',sans-serif", "--mono": "'JetBrains Mono',ui-monospace,monospace"}, "canvas": {"c1": "255,230,0", "c2": "255,45,138", "dust": "255,250,220", "hi": "255,250,235", "pn": "22,6,28", "bg0": "40,10,50", "bg1": "26,6,32", "bg2": "16,4,20", "a": 0.5}, "fonts": "Bangers&family=Dela+Gothic+One", "sw": ["#ffe600", "#ff2d8a", "#00c2ff", "#8cff2e"], "light": false}, {"id": "sorayama", "name": "セクシーロボット", "sub": "空山基 モチーフ", "desc": "富豪の秘密の地下研究室を覗いてしまった夜。ケーブルに繋がれたバイザー顔のクローム女体ロボが中央に立ち、両脇の光るショーケースが奥へ続く。鏡面の映り込みとスターバーストの輝き。", "vars": {"--bg": "#07080c", "--c1": "#e6ebf2", "--c1-rgb": "230,235,242", "--c2": "#c8ff3a", "--c2-rgb": "200,255,58", "--warn": "#e8c15a", "--alert": "#ff4f7a", "--txt": "#e9edf3", "--mute": "#8b93a1", "--pn-rgb": "10,11,16", "--on-c1": "#0b0c10", "--hi": "#ffffff", "--inp-bg": "#05060a", "--vig": "rgba(0,0,0,.6)", "--disp": "'Michroma','Orbitron',sans-serif", "--jp": "'Noto Sans JP',sans-serif", "--mono": "'JetBrains Mono',ui-monospace,monospace"}, "canvas": {"c1": "230,235,242", "c2": "200,255,58", "dust": "210,220,235", "hi": "255,255,255", "pn": "10,11,16", "bg0": "40,46,64", "bg1": "12,14,20", "bg2": "4,5,8", "a": 0.38}, "fonts": "Michroma", "sw": ["#0b0c10", "#e6ebf2", "#e8c15a", "#c8ff3a"], "light": false}, {"id": "taniho", "name": "生命の極彩", "sub": "谷保玲奈 モチーフ", "desc": "燃えるような朱と橙の地に、紫陽花・貝・蜻蛉がうねり増殖する。岩絵具のような重なりと南洋的な鮮烈さ。", "vars": {"--bg": "#2a0905", "--c1": "#ff8a3d", "--c1-rgb": "255,138,61", "--c2": "#8fbaff", "--c2-rgb": "143,186,255", "--warn": "#ff5c9a", "--alert": "#ff3030", "--txt": "#fff1e6", "--mute": "#d9a68c", "--pn-rgb": "42,12,8", "--on-c1": "#1f0700", "--hi": "#fff4eb", "--inp-bg": "#1c0503", "--vig": "rgba(30,0,10,.6)", "--disp": "'Shippori Mincho B1',serif", "--jp": "'Shippori Mincho B1','Noto Serif JP',serif", "--mono": "'JetBrains Mono',ui-monospace,monospace"}, "canvas": {"c1": "255,150,80", "c2": "150,195,255", "dust": "255,220,190", "hi": "255,244,235", "pn": "40,12,8", "bg0": "120,30,10", "bg1": "70,12,8", "bg2": "30,4,6", "a": 0.45}, "fonts": "Shippori+Mincho+B1:wght@600;800", "sw": ["#c2410c", "#ff5c9a", "#8fbaff", "#ffe08a"], "light": false}, {"id": "yoshizawa", "name": "水と身体", "sub": "吉澤舞子 モチーフ", "desc": "淡い青磁色の水中に、ほどけた手足と金の輪、泡と流線が漂う。変形パネルのような柔らかな輪郭。", "vars": {"--bg": "#d9ebe3", "--c1": "#2c7a6e", "--c1-rgb": "44,122,110", "--c2": "#b8901c", "--c2-rgb": "184,144,28", "--warn": "#3b5fb0", "--alert": "#c9504a", "--txt": "#1f3b36", "--mute": "#5b857b", "--pn-rgb": "238,247,242", "--on-c1": "#f3fbf7", "--hi": "rgb(22,52,46)", "--inp-bg": "#f6fbf8", "--vig": "rgba(120,170,160,.35)", "--disp": "'Zen Old Mincho',serif", "--jp": "'Zen Old Mincho','Noto Serif JP',serif", "--mono": "'JetBrains Mono',ui-monospace,monospace"}, "canvas": {"c1": "44,122,110", "c2": "184,144,28", "dust": "60,120,110", "hi": "22,52,46", "pn": "240,248,243", "bg0": "240,250,236", "bg1": "214,236,228", "bg2": "176,212,206", "a": 0.38}, "fonts": "Zen+Old+Mincho:wght@600;900", "sw": ["#cfe7df", "#2c7a6e", "#b8901c", "#5d97c4"], "light": true}, {"id": "magi", "name": "MAGI SYSTEM", "sub": "ネルフ本部・作戦司令室", "desc": "黒とオレンジの司令室。六角グリッド、警告ストライプ、極太明朝の見出し。", "vars": {"--bg": "#0a0300", "--c1": "#ff8c1a", "--c1-rgb": "255,140,26", "--c2": "#ff3355", "--c2-rgb": "255,51,85", "--warn": "#ffd400", "--alert": "#ff1e1e", "--txt": "#ffe9d6", "--mute": "#b07a4a", "--pn-rgb": "16,6,0", "--on-c1": "#140700", "--hi": "#ffecd6", "--inp-bg": "#0a0300", "--vig": "rgba(0,0,0,.75)", "--disp": "'Noto Serif JP',serif", "--jp": "'Noto Sans JP',sans-serif", "--mono": "'JetBrains Mono',ui-monospace,monospace"}, "canvas": {"c1": "255,140,26", "c2": "255,51,85", "dust": "255,200,150", "hi": "255,236,214", "pn": "16,6,0", "bg0": "60,24,0", "bg1": "24,8,0", "bg2": "8,2,0", "a": 0.6}, "fonts": "Noto+Serif+JP:wght@900", "sw": ["#0a0300", "#ff8c1a", "#ff3355", "#ffd400"], "light": false}, {"id": "unit01", "name": "初号機", "sub": "紫と蛍光グリーン", "desc": "装甲の紫、発光する緑。暴走寸前の生体兵器のような配色。", "vars": {"--bg": "#0d0618", "--c1": "#8be33b", "--c1-rgb": "139,227,59", "--c2": "#a66bff", "--c2-rgb": "166,107,255", "--warn": "#ff8c1a", "--alert": "#ff2e63", "--txt": "#efe6ff", "--mute": "#8e7bb5", "--pn-rgb": "18,8,32", "--on-c1": "#0d1a02", "--hi": "#f4ecff", "--inp-bg": "#0a0414", "--vig": "rgba(10,0,20,.75)", "--disp": "'Orbitron','JetBrains Mono',sans-serif", "--jp": "'Noto Sans JP',sans-serif", "--mono": "'JetBrains Mono',ui-monospace,monospace"}, "canvas": {"c1": "139,227,59", "c2": "166,107,255", "dust": "210,190,255", "hi": "244,236,255", "pn": "18,8,32", "bg0": "60,20,100", "bg1": "26,10,46", "bg2": "10,4,20", "a": 0.55}, "fonts": "", "sw": ["#2a1150", "#8be33b", "#a66bff", "#ff8c1a"], "light": false}, {"id": "matrix", "name": "デジタル・レイン", "sub": "緑の文字が降る", "desc": "黒地に降り注ぐ緑のカタカナ。端末の向こうの仮想現実。", "vars": {"--bg": "#000500", "--c1": "#39ff6a", "--c1-rgb": "57,255,106", "--c2": "#b8ffcc", "--c2-rgb": "184,255,204", "--warn": "#ffd000", "--alert": "#ff4040", "--txt": "#c8ffd4", "--mute": "#3f8f55", "--pn-rgb": "0,10,2", "--on-c1": "#001a06", "--hi": "#d8ffe2", "--inp-bg": "#000", "--vig": "rgba(0,0,0,.8)", "--disp": "'VT323',monospace", "--jp": "'Noto Sans JP',sans-serif", "--mono": "'Share Tech Mono','JetBrains Mono',monospace"}, "canvas": {"c1": "57,255,106", "c2": "184,255,204", "dust": "120,255,150", "hi": "216,255,226", "pn": "0,10,2", "bg0": "0,40,10", "bg1": "0,14,4", "bg2": "0,4,0", "a": 0.55}, "fonts": "VT323&family=Share+Tech+Mono", "sw": ["#000500", "#39ff6a", "#b8ffcc", "#0b3d17"], "light": false}, {"id": "neotokyo", "name": "ネオ東京", "sub": "赤いバイクと崩壊する都市", "desc": "黒と鮮烈な赤。スピード線、網点、極太ゴシック。80年代劇場アニメのサイバーパンク。", "vars": {"--bg": "#0b0000", "--c1": "#ff2a2a", "--c1-rgb": "255,42,42", "--c2": "#ffe14d", "--c2-rgb": "255,225,77", "--warn": "#ffffff", "--alert": "#ff0055", "--txt": "#ffeaea", "--mute": "#a35a5a", "--pn-rgb": "18,2,2", "--on-c1": "#170000", "--hi": "#fff1f1", "--inp-bg": "#0b0000", "--vig": "rgba(0,0,0,.8)", "--disp": "'Dela Gothic One',sans-serif", "--jp": "'Dela Gothic One','Noto Sans JP',sans-serif", "--mono": "'JetBrains Mono',ui-monospace,monospace"}, "canvas": {"c1": "255,60,60", "c2": "255,225,77", "dust": "255,190,190", "hi": "255,241,241", "pn": "18,2,2", "bg0": "90,0,0", "bg1": "34,0,0", "bg2": "10,0,0", "a": 0.55}, "fonts": "Dela+Gothic+One", "sw": ["#0b0000", "#ff2a2a", "#ffe14d", "#ffffff"], "light": false}, {"id": "rain", "name": "酸性雨の街", "sub": "アンバーとティールのネオン", "desc": "霧と雨に滲むネオン。琥珀色の灯りと青緑の反射。", "vars": {"--bg": "#05080a", "--c1": "#ffb347", "--c1-rgb": "255,179,71", "--c2": "#2fd6c9", "--c2-rgb": "47,214,201", "--warn": "#ff5ea8", "--alert": "#ff3b3b", "--txt": "#f3e6d0", "--mute": "#8a7a62", "--pn-rgb": "8,12,14", "--on-c1": "#1a0e00", "--hi": "#fff3e0", "--inp-bg": "#05080a", "--vig": "rgba(0,0,0,.78)", "--disp": "'Orbitron','JetBrains Mono',sans-serif", "--jp": "'Noto Sans JP',sans-serif", "--mono": "'JetBrains Mono',ui-monospace,monospace"}, "canvas": {"c1": "255,179,71", "c2": "47,214,201", "dust": "200,230,240", "hi": "255,243,224", "pn": "8,12,14", "bg0": "50,40,20", "bg1": "14,20,24", "bg2": "4,6,8", "a": 0.55}, "fonts": "", "sw": ["#05080a", "#ffb347", "#2fd6c9", "#ff5ea8"], "light": false}, {"id": "grid", "name": "THE GRID", "sub": "光るグリッドの地平", "desc": "漆黒にシアンとオレンジの光線。デジタル世界の地平線。", "vars": {"--bg": "#000208", "--c1": "#00e5ff", "--c1-rgb": "0,229,255", "--c2": "#ff8a00", "--c2-rgb": "255,138,0", "--warn": "#ffe600", "--alert": "#ff2e4d", "--txt": "#d6f8ff", "--mute": "#4f8a99", "--pn-rgb": "0,6,14", "--on-c1": "#00141a", "--hi": "#e6fbff", "--inp-bg": "#000208", "--vig": "rgba(0,0,0,.8)", "--disp": "'Orbitron','JetBrains Mono',sans-serif", "--jp": "'Noto Sans JP',sans-serif", "--mono": "'JetBrains Mono',ui-monospace,monospace"}, "canvas": {"c1": "0,229,255", "c2": "255,138,0", "dust": "160,240,255", "hi": "230,251,255", "pn": "0,6,14", "bg0": "0,40,60", "bg1": "0,10,20", "bg2": "0,2,8", "a": 0.55}, "fonts": "", "sw": ["#000208", "#00e5ff", "#ff8a00", "#003a4a"], "light": false}, {"id": "vapor", "name": "VAPOR ドリーム", "sub": "夕焼けとネオンピンク", "desc": "ピンクと紫のグラデーション、縞の太陽、マゼンタのグリッド。", "vars": {"--bg": "#1a0633", "--c1": "#ff71ce", "--c1-rgb": "255,113,206", "--c2": "#01cdfe", "--c2-rgb": "1,205,254", "--warn": "#fffb96", "--alert": "#ff3f8e", "--txt": "#fff0fb", "--mute": "#b39ddb", "--pn-rgb": "30,8,52", "--on-c1": "#2a0020", "--hi": "#fff2fb", "--inp-bg": "#140428", "--vig": "rgba(20,0,40,.6)", "--disp": "'Orbitron','JetBrains Mono',sans-serif", "--jp": "'Noto Sans JP',sans-serif", "--mono": "'JetBrains Mono',ui-monospace,monospace"}, "canvas": {"c1": "255,113,206", "c2": "1,205,254", "dust": "255,210,240", "hi": "255,242,251", "pn": "30,8,52", "bg0": "120,40,140", "bg1": "50,12,80", "bg2": "20,4,40", "a": 0.5}, "fonts": "", "sw": ["#2b0a4f", "#ff71ce", "#01cdfe", "#fffb96"], "light": false}, {"id": "wired", "name": "ワイヤード", "sub": "電線と赤い影", "desc": "灰色の空を横切る電線と電柱。地面に落ちる赤い影。ノイズまじりの静けさ。", "vars": {"--bg": "#141212", "--c1": "#e6e2dc", "--c1-rgb": "230,226,220", "--c2": "#d1262f", "--c2-rgb": "209,38,47", "--warn": "#ffcc00", "--alert": "#ff2b2b", "--txt": "#e9e6e1", "--mute": "#8a837d", "--pn-rgb": "22,20,20", "--on-c1": "#141212", "--hi": "#f4f1ec", "--inp-bg": "#0e0d0d", "--vig": "rgba(0,0,0,.7)", "--disp": "'VT323',monospace", "--jp": "'Noto Sans JP',sans-serif", "--mono": "'JetBrains Mono',ui-monospace,monospace"}, "canvas": {"c1": "230,226,220", "c2": "209,38,47", "dust": "200,195,190", "hi": "244,241,236", "pn": "22,20,20", "bg0": "70,64,62", "bg1": "34,31,30", "bg2": "14,12,12", "a": 0.55}, "fonts": "VT323", "sw": ["#2a2726", "#e6e2dc", "#d1262f", "#5d5855"], "light": false}, {"id": "ukiyoe", "name": "藍と朱", "sub": "浮世絵・和紙", "desc": "和紙の地に藍の青海波と朱の太陽。版画のような静かな配色。", "vars": {"--bg": "#efe4cf", "--c1": "#1f3a68", "--c1-rgb": "31,58,104", "--c2": "#c8392b", "--c2-rgb": "200,57,43", "--warn": "#b8860b", "--alert": "#c8392b", "--txt": "#1d1b18", "--mute": "#6f6556", "--pn-rgb": "247,240,226", "--on-c1": "#f7f0e2", "--hi": "rgb(28,26,24)", "--inp-bg": "#fbf6ea", "--vig": "rgba(120,90,50,.25)", "--disp": "'Shippori Mincho B1',serif", "--jp": "'Shippori Mincho B1','Noto Serif JP',serif", "--mono": "'JetBrains Mono',ui-monospace,monospace"}, "canvas": {"c1": "31,58,104", "c2": "200,57,43", "dust": "70,80,110", "hi": "28,26,24", "pn": "247,240,226", "bg0": "250,244,230", "bg1": "239,228,207", "bg2": "220,205,178", "a": 0.35}, "fonts": "Shippori+Mincho+B1:wght@600;800", "sw": ["#efe4cf", "#1f3a68", "#c8392b", "#b8860b"], "light": true}, {"id": "lab", "name": "ホワイト・ラボ", "sub": "明るい研究所", "desc": "白い研究室のような明るく見やすい配色。日中の閲覧に。", "vars": {"--bg": "#f2f5f8", "--c1": "#0b6bcb", "--c1-rgb": "11,107,203", "--c2": "#0a9a72", "--c2-rgb": "10,154,114", "--warn": "#d97706", "--alert": "#dc2626", "--txt": "#1e293b", "--mute": "#64748b", "--pn-rgb": "255,255,255", "--on-c1": "#ffffff", "--hi": "rgb(15,23,42)", "--inp-bg": "#ffffff", "--vig": "rgba(100,116,139,.18)", "--disp": "'Orbitron','JetBrains Mono',sans-serif", "--jp": "'Noto Sans JP',sans-serif", "--mono": "'JetBrains Mono',ui-monospace,monospace"}, "canvas": {"c1": "11,107,203", "c2": "10,154,114", "dust": "100,116,139", "hi": "15,23,42", "pn": "255,255,255", "bg0": "255,255,255", "bg1": "236,241,247", "bg2": "220,228,238", "a": 0.4}, "fonts": "", "sw": ["#f2f5f8", "#0b6bcb", "#0a9a72", "#d97706"], "light": true}];
 let TH = THEMES[0].canvas;
 const loadedFonts = new Set();
 function loadFont(f) {
@@ -1461,25 +1465,35 @@ function dive(v, from, onMid) {
       { const g = c.createRadialGradient(cx, cy, Math.min(W, H) * 0.18, cx, cy, M * 0.75); g.addColorStop(0, 'rgba(0,3,6,0)'); g.addColorStop(1, `rgba(0,3,6,${0.85 * e})`); c.fillStyle = g; c.fillRect(0, 0, W, H); }
       for (let i = 0; i < 16; i++) {          // memory gates (hex tunnel)
         const z = (i / 16 + t * speed * 0.9) % 1, r = 18 + Math.pow(z, 2.6) * M * 1.1, al = Math.sin(z * Math.PI) * Math.min(1, t * 3) * 0.75;
+        if (NV()) {
+          c.strokeStyle = i % 4 === 0 ? `rgba(225,240,255,${al})` : `rgba(64,132,255,${al})`; c.lineWidth = 1 + z * 4;
+          c.beginPath(); c.arc(cx, cy, r, 0, 6.283); c.stroke();
+          if (i % 2 === 0) { c.strokeStyle = `rgba(150,205,255,${al * 0.6})`; c.lineWidth = 1; c.beginPath(); for (let k = 0; k < 48; k++) { if (k % 8 > 5) continue; const a = k / 48 * 6.283 + t * (i % 4 ? 1.2 : -1.2); c.moveTo(cx + Math.cos(a) * r * 1.06, cy + Math.sin(a) * r * 1.06); c.lineTo(cx + Math.cos(a) * r * 1.12, cy + Math.sin(a) * r * 1.12); } c.stroke(); }
+          continue;
+        }
         c.strokeStyle = i % 3 === 0 ? `rgba(255,140,26,${al})` : (i % 2 ? hexA(acc, al) : `rgba(${TH.c1},${al})`); c.lineWidth = 1 + z * 3;
         c.beginPath(); for (let k = 0; k < 6; k++) { const a = -Math.PI / 2 + k * Math.PI / 3 + t * 1.6 + i * 0.08; c[k ? 'lineTo' : 'moveTo'](cx + Math.cos(a) * r, cy + Math.sin(a) * r); } c.closePath(); c.stroke();
       }
       c.textAlign = 'left';
       streaks.forEach(s => {                   // data streams
         const z = (s.d + t * s.sp * speed * 0.55) % 1, r0 = Math.pow(z, 2.2) * M * 0.9, x = cx + Math.cos(s.a) * r0, y = cy + Math.sin(s.a) * r0, al = z * Math.min(1, t * 3);
-        if (s.txt) { c.font = `${10 + z * 22}px "JetBrains Mono", monospace`; c.fillStyle = `rgba(${TH.c2},${al * 0.8})`; c.fillText(s.ch, x, y); }
+        if (s.txt && NV()) { const L2 = 3 + z * 16; c.strokeStyle = `rgba(230,242,255,${al * 0.9})`; c.lineWidth = 1; c.beginPath(); c.moveTo(x - L2, y); c.lineTo(x + L2, y); c.moveTo(x, y - L2); c.lineTo(x, y + L2); c.stroke(); }
+        else if (s.txt) { c.font = `${10 + z * 22}px "JetBrains Mono", monospace`; c.fillStyle = `rgba(${TH.c2},${al * 0.8})`; c.fillText(s.ch, x, y); }
         else { const len = 8 + z * 90 * speed; c.strokeStyle = `rgba(${TH.dust},${al * 0.7})`; c.lineWidth = 1 + z; c.beginPath(); c.moveTo(x, y); c.lineTo(x + Math.cos(s.a) * len, y + Math.sin(s.a) * len); c.stroke(); }
       });
       mem.forEach(m => {                       // other memories of the same channel flying past
         if (!m.im.complete || !m.im.naturalWidth) return;
         const z = (m.d + t * 1.4) % 1, r0 = 40 + z * z * M * 0.8, w = (30 + z * 260) * m.s, x = cx + Math.cos(m.a) * r0 - w / 2, y = cy + Math.sin(m.a) * r0 - w * 9 / 32;
-        c.globalAlpha = Math.sin(z * Math.PI) * 0.5 * Math.min(1, t * 2); c.drawImage(m.im, x, y, w, w * 9 / 16); c.strokeStyle = acc; c.lineWidth = 1; c.strokeRect(x, y, w, w * 9 / 16); c.globalAlpha = 1;
+        c.globalAlpha = Math.sin(z * Math.PI) * 0.5 * Math.min(1, t * 2);
+        if (NV()) { const rr2 = w * 0.42, ox = x + w / 2, oy = y + w * 9 / 32; c.save(); c.beginPath(); c.arc(ox, oy, rr2, 0, 6.283); c.clip(); c.drawImage(m.im, ox - rr2 * 1.78, oy - rr2, rr2 * 3.56, rr2 * 2); c.restore(); c.strokeStyle = 'rgba(64,132,255,.95)'; c.lineWidth = 2 + z * 3; c.beginPath(); c.arc(ox, oy, rr2, 0, 6.283); c.stroke(); c.strokeStyle = 'rgba(220,238,255,.9)'; c.lineWidth = 1; c.stroke(); }
+        else { c.drawImage(m.im, x, y, w, w * 9 / 16); c.strokeStyle = acc; c.lineWidth = 1; c.strokeRect(x, y, w, w * 9 / 16); }
+        c.globalAlpha = 1;
       });
       c.strokeStyle = acc; c.lineWidth = 2; const L = 18 + 30 * e;
       [[r.x, r.y, 1, 1], [r.x + r.w, r.y, -1, 1], [r.x, r.y + r.h, 1, -1], [r.x + r.w, r.y + r.h, -1, -1]].forEach(([x, y, sx, sy]) => { c.beginPath(); c.moveTo(x + sx * L, y); c.lineTo(x, y); c.lineTo(x, y + sy * L); c.stroke(); });
       const top = 40 + (parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sat')) || 0);
       c.font = '700 12px "JetBrains Mono", monospace'; c.fillStyle = `rgb(${TH.c1})`; c.fillText(`DIVE // MEMORY ACCESS  ${v.id}`, 20, top);
-      c.fillStyle = '#ff8c1a'; c.fillText(`SECTOR 0x${sector}  ·  SYNC ${Math.floor(e * 100)}%`, 20, top + 18);
+      c.fillStyle = NV() ? '#9fd0ff' : '#ff8c1a'; c.fillText(`SECTOR 0x${sector}  ·  SYNC ${Math.floor(e * 100)}%`, 20, top + 18);
       c.textAlign = 'center'; c.font = '700 15px "Noto Sans JP", sans-serif'; c.fillStyle = `rgb(${TH.hi})`; c.fillText('記憶領域へ侵入中…', cx, H - 92);
       const shown = title.slice(0, Math.floor(title.length * Math.min(1, t * 1.6)));
       c.font = '500 13px "Noto Sans JP", sans-serif'; c.fillStyle = `rgba(${TH.hi},.85)`; { let tx = shown; while (tx.length > 1 && c.measureText(tx + '…').width > W - 40) tx = tx.slice(0, -1); c.fillText(tx === shown ? tx : tx + '…', cx, H - 68); }
@@ -1573,7 +1587,7 @@ function frame() {
       if (Math.abs(net.tYaw - net.yaw) < 0.002 && Math.abs(net.tPitch - net.pitch) < 0.002) { net.tYaw = net.tPitch = null; }
     } else {
       net.yaw += net.vYaw; net.pitch += net.vPitch; net.vYaw *= 0.95; net.vPitch *= 0.95;
-      if (state.prefs.autoRot && state.prefs.fx && !state.inspected && net.ptr.str < 0.5) net.yaw += 0.0015;
+      if (state.prefs.autoRot && state.prefs.fx && !state.inspected && net.ptr.str < 0.5 && state.prefs.shape !== 'grid') net.yaw += 0.0015;
     }
   }
   net.pitch = clamp(net.pitch, -1.35, 1.35);
@@ -1593,6 +1607,9 @@ function frame() {
   bg.addColorStop(0, `rgba(${TH.bg0},${.55 * TH.a})`); bg.addColorStop(0.45, `rgba(${TH.bg1},${.4 * TH.a})`); bg.addColorStop(1, `rgba(${TH.bg2},${TH.a})`);
   ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
 
+  const L = LENS();
+  if (NV()) nvBack(T, L);
+  else {
   // HUD rings
   const hr = R * net.zoom * 1.45;
   ctx.save(); ctx.translate(cx + net.par.x * -10, cy + net.par.y * -10);
@@ -1616,7 +1633,6 @@ function frame() {
   net.rings.forEach(pts => { let prev = null; pts.forEach(p => { const q = project(p[0], p[1], p[2]); if (prev) { ctx.strokeStyle = `rgba(${TH.c1},${0.025 + Math.max(0, (q.z + 1.2) / 2.4) * 0.08})`; ctx.beginPath(); ctx.moveTo(prev.x, prev.y); ctx.lineTo(q.x, q.y); ctx.stroke(); } prev = q; }); });
 
   // dust (information sea) — also reacts to the pointer a little
-  const L = LENS();
   net.dust.forEach(d => {
     const p = project(d.x, d.y, d.z);
     if (net.ptr.str > 0.01) { const dx = p.x - net.ptr.x, dy = p.y - net.ptr.y, dd = Math.hypot(dx, dy) || 1; if (dd < L.R) { const s = Math.sin(Math.PI * dd / L.R) * 26 * net.ptr.str * state.prefs.lens; p.x += dx / dd * s; p.y += dy / dd * s; } }
@@ -1626,11 +1642,13 @@ function frame() {
   (ECO() ? net.dustLinks.slice(0, 140) : net.dustLinks).forEach(([a, b]) => { ctx.strokeStyle = `rgba(${TH.c1},${0.03 + Math.max(0, (a.p.z + b.p.z + 2) / 4) * 0.07})`; ctx.beginPath(); ctx.moveTo(a.p.x, a.p.y); ctx.lineTo(b.p.x, b.p.y); ctx.stroke(); });
   net.dust.forEach(d => { const tw = state.prefs.fx ? (Math.sin(T * 0.04 + d.tw) + 1) / 2 : 0.5; const al = (0.15 + Math.max(0, (d.p.z + 1.5) / 3) * 0.6) * (0.5 + tw * 0.5); ctx.fillStyle = d.tw > 5.4 ? `rgba(${TH.c2},${al})` : `rgba(${TH.dust},${al})`; const s = 1.2 * d.p.k; ctx.fillRect(d.p.x - s / 2, d.p.y - s / 2, s, s); });
 
+  }
   // nodes: project + lens/spring
   stepDepth(performance.now());               // may rebuild the topology → must run before collecting nodes
+  stepShape();
   const nodes = [...net.hubs, ...net.vids];
-  const XS = net.xf.s;
-  nodes.forEach(n => settle(n, n === net.xf.keep ? project(n.x, n.y, n.z) : project(n.x * XS, n.y * XS, n.z * XS), L));
+  const XS = net.xf.s, nv = NV();
+  nodes.forEach(n => { const b = nv ? nvBob(n, T) : [0, 0, 0]; settle(n, n === net.xf.keep ? project(n.x + b[0], n.y + b[1], n.z + b[2]) : project(n.x * XS + b[0], n.y * XS + b[1], n.z * XS + b[2]), L); });
   net.vids.forEach(n => n.g = cardGeom(n));
   if (sfx.ctx) {
     let mv = Math.abs(net.vYaw) * 6 + Math.abs(net.vPitch) * 6 + (net.drag && net.drag.moved ? 0.04 : 0);
@@ -1651,7 +1669,17 @@ function frame() {
   });
 
   // links
-  net.links.forEach(l => {
+  const gridK = state.prefs.shape === 'grid' ? 0.35 : 1;
+  if (NV()) net.links.forEach(l => {
+    const a = l.a.p, b = l.b.p;
+    const hl = net.hover === l.a || net.hover === l.b || (state.inspected && (l.b.id === state.inspected || l.a.id === state.inspected));
+    const al = dA((a.z + b.z) / 2) * Math.min(dim(l.a), dim(l.b)) * (hl ? 1 : gridK);
+    ctx.setLineDash(l.kind === 'x' ? [2, 6] : []);
+    ctx.strokeStyle = hl ? 'rgba(240,248,255,.9)' : l.kind === 'bb' ? `rgba(200,225,255,${0.34 * al})` : l.kind === 'x' ? `rgba(${NVC.teal},${0.1 * al})` : `rgba(210,230,255,${0.17 * al})`;
+    ctx.lineWidth = hl ? 1.4 : l.kind === 'bb' ? 1.1 : 0.8;
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+  });
+  else net.links.forEach(l => {
     const a = l.a.p, b = l.b.p;
     const hl = net.hover === l.a || net.hover === l.b || (state.inspected && (l.b.id === state.inspected || l.a.id === state.inspected));
     const al = dA((a.z + b.z) / 2) * Math.min(dim(l.a), dim(l.b));
@@ -1667,10 +1695,10 @@ function frame() {
   // pulses
   if (state.prefs.fx) net.pulses.forEach(pu => {
     pu.t += pu.sp; if (pu.t > 1) { pu.t = 0; pu.rev = !pu.rev; }
-    const A = pu.l.a.p, B = pu.l.b.p, mx = (A.x + B.x) / 2 + (A.y - B.y) * 0.08, my = (A.y + B.y) / 2 + (B.x - A.x) * 0.08;
+    const A = pu.l.a.p, B = pu.l.b.p, cv = NV() ? 0 : 0.08, mx = (A.x + B.x) / 2 + (A.y - B.y) * cv, my = (A.y + B.y) / 2 + (B.x - A.x) * cv;
     const t = pu.rev ? 1 - pu.t : pu.t;
     const x = (1 - t) * (1 - t) * A.x + 2 * (1 - t) * t * mx + t * t * B.x, y = (1 - t) * (1 - t) * A.y + 2 * (1 - t) * t * my + t * t * B.y;
-    const col = (pu.rev ? pu.l.a : pu.l.b).accent, al = dA((A.z + B.z) / 2) * Math.min(dim(pu.l.a), dim(pu.l.b));
+    const col = NV() ? '#d8ecff' : (pu.rev ? pu.l.a : pu.l.b).accent, al = dA((A.z + B.z) / 2) * Math.min(dim(pu.l.a), dim(pu.l.b));
     ctx.fillStyle = hexA(col, al); if (!ECO()) { ctx.shadowColor = col; ctx.shadowBlur = 8; }
     ctx.beginPath(); ctx.arc(x, y, 1.8 * A.k, 0, Math.PI * 2); ctx.fill();
   });
@@ -1695,7 +1723,253 @@ function frame() {
   net.ripples.forEach(r => { r.r += 9; r.a *= 0.95; ctx.strokeStyle = `rgba(${TH.c1},${r.a})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(r.x, r.y, r.r, 0, Math.PI * 2); ctx.stroke(); });
 }
 
+
+// ===== NERVE NET style (faithful to the exhibition visualizer): circular "porthole" nodes =====
+// Reference: 攻殻機動隊展 "Nerve Net" — deep-blue space, glowing ring nodes with scene stills,
+// tick rings, title pills, barcode strips, white network lines, teal particle nebulae and "+" glints.
+const NV = () => TH.style === 'nerve';
+const NVC = { ring: '64,132,255', core: '205,230,255', ice: '150,205,255', teal: '90,255,205', navy: '3,9,36' };
+let nvGlow = null;
+function nvSprite() {
+  if (nvGlow) return nvGlow;
+  const s = 128, c = document.createElement('canvas'); c.width = c.height = s; const g = c.getContext('2d');
+  const gr = g.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+  gr.addColorStop(0, 'rgba(90,150,255,.55)'); gr.addColorStop(0.42, 'rgba(60,120,255,.28)'); gr.addColorStop(0.7, 'rgba(40,90,255,.08)'); gr.addColorStop(1, 'rgba(30,70,255,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, s, s); nvGlow = c; return c;
+}
+function hubR(n) { return n.r * n.p.k * net.scaleR * net.zoom * n.p.mag * (NV() ? 1.55 : 1); }
+function nvBob(n, T) { if (!state.prefs.fx) return [0, 0, 0]; const t = T * 0.011 + n.phase * 3.1; return [Math.sin(t) * 0.014, Math.sin(t * 0.83 + 1.3) * 0.016, Math.cos(t * 0.7) * 0.014]; }
+
+function buildNeb() {
+  const r = rng(7); net.neb = []; net.spk = [];
+  const centers = Array.from({ length: 7 }, () => norm([r() * 2 - 1, r() * 2 - 1, r() * 2 - 1]).map(x => x * (1.15 + r() * 0.6)));
+  for (let i = 0; i < 1600; i++) {
+    const c = centers[i % centers.length], g = () => (r() + r() + r() - 1.5) * 0.62;
+    net.neb.push({ x: c[0] + g(), y: c[1] + g() * 0.75, z: c[2] + g(), s: r() < 0.06 ? 1.9 : 0.55 + r() * 0.95, c: r() < 0.58 ? 0 : (r() < 0.65 ? 1 : 2), ph: r() * 6.28 });
+  }
+  for (let i = 0; i < 52; i++) { const d = norm([r() * 2 - 1, r() * 2 - 1, r() * 2 - 1]), rad = 0.5 + r() * 1.6; net.spk.push({ x: d[0] * rad, y: d[1] * rad, z: d[2] * rad, s: 3 + Math.pow(r(), 3) * 13, ph: r() * 6.28, sp: 0.5 + r() }); }
+}
+
+function nvBack(T, L) {
+  const { w, h, cx, cy } = net;
+  // projection-room haze: deep royal blue fading to black
+  const hz = ctx.createRadialGradient(cx, cy * 0.85, 0, cx, cy, Math.max(w, h) * 0.75);
+  hz.addColorStop(0, 'rgba(18,48,160,.42)'); hz.addColorStop(0.5, 'rgba(6,18,72,.32)'); hz.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = hz; ctx.fillRect(0, 0, w, h);
+  if (!net.neb) buildNeb();
+  const eco = ECO(), sw = T * 0.00045, cs = Math.cos(sw), sn = Math.sin(sw);
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  const cols = [NVC.teal, NVC.ice, '235,245,255'];
+  for (let i = 0; i < net.neb.length; i += eco ? 2 : 1) {
+    const d = net.neb[i], x = d.x * cs - d.z * sn, z = d.x * sn + d.z * cs;
+    const p = project(x, d.y, z); if (p.k <= 0) continue;
+    const front = clamp((p.z + 1.6) / 3.2, 0, 1), tw = state.prefs.fx ? 0.65 + 0.35 * Math.sin(T * 0.03 + d.ph) : 0.8;
+    ctx.fillStyle = `rgba(${cols[d.c]},${(0.12 + front * 0.5) * tw})`;
+    const s = d.s * p.k * (0.8 + front * 0.6); ctx.fillRect(p.x - s / 2, p.y - s / 2, s, s);
+  }
+  // far stars
+  net.dust.forEach(d => { const p = project(d.x * 1.5, d.y * 1.5, d.z * 1.5); d.p = p; const tw = state.prefs.fx ? (Math.sin(T * 0.04 + d.tw) + 1) / 2 : 0.5; ctx.fillStyle = `rgba(220,235,255,${0.12 + tw * 0.35})`; ctx.fillRect(p.x - 0.6, p.y - 0.6, 1.2, 1.2); });
+  // "+" glints
+  net.spk.forEach(s => {
+    const p = project(s.x, s.y, s.z), tw = state.prefs.fx ? 0.55 + 0.45 * Math.sin(T * 0.025 * s.sp + s.ph) : 0.8;
+    const len = s.s * p.k * tw, al = (0.25 + clamp((p.z + 1.5) / 3, 0, 1) * 0.6) * tw;
+    ctx.strokeStyle = `rgba(225,240,255,${al})`; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(p.x - len, p.y); ctx.lineTo(p.x + len, p.y); ctx.moveTo(p.x, p.y - len); ctx.lineTo(p.x, p.y + len); ctx.stroke();
+    if (s.s > 9) { ctx.fillStyle = `rgba(200,225,255,${al * 0.5})`; ctx.beginPath(); ctx.arc(p.x, p.y, 1.6 * p.k, 0, 6.283); ctx.fill(); }
+  });
+  ctx.restore();
+}
+
+function nvGeom(n) {
+  const p = n.p;
+  if (p.z < -0.5) return { dot: true, x: p.x, y: p.y, r: 2.6 + n.vf * 1.8 };
+  const r = (19 + n.vf * 11) * Math.max(net.scaleR, isMobile() ? 0.95 : 0) * p.k * net.zoom * p.mag * (isMobile() ? 1.08 : 1);
+  return { dot: false, cx: p.x, cy: p.y, r, x: p.x - r, y: p.y - r, w: r * 2, h: r * 2 };
+}
+function nvBars(n) {
+  if (n.bars) return n.bars; const r = rng(hashStr(n.id + 'b')); const b = []; let x = 0;
+  while (x < 1) { const w = 0.01 + r() * 0.035; if (r() < 0.62) b.push([x, w * (0.4 + r() * 0.6)]); x += w; }
+  return (n.bars = b);
+}
+function nvFit(text, maxW, font, key, n) {
+  if (n[key] && n[key].k === maxW + font) return n[key].t;
+  ctx.font = font; let t = text;
+  if (ctx.measureText(t).width > maxW) { while (t.length > 1 && ctx.measureText(t + '…').width > maxW) t = t.slice(0, -1); t += '…'; }
+  n[key] = { k: maxW + font, t }; return t;
+}
+function nvRing(x, y, r, a0, a1, lw, col) { ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.beginPath(); ctx.arc(x, y, r, a0, a1); ctx.stroke(); }
+
+function drawVidNV(n, al) {
+  const g = n.g, hov = net.hover === n, ins = state.inspected === n.id, T = state.prefs.fx ? net.tick : 0;
+  const watched = state.watchedIds.includes(n.id), eco = ECO();
+  ctx.save(); ctx.globalAlpha = al;
+  if (g.dot) {   // far: a small glowing bubble
+    ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(nvSprite(), g.x - g.r * 3, g.y - g.r * 3, g.r * 6, g.r * 6);
+    nvRing(g.x, g.y, g.r, 0, 6.283, 1.2, `rgba(${NVC.core},.8)`); ctx.restore(); return;
+  }
+  const { cx, cy, r } = g, hot = hov || ins || n.lens > 0.3;
+  // halo
+  if (!eco || hot) { ctx.globalCompositeOperation = 'lighter'; const hs = r * (hot ? 3.4 : 2.7); ctx.globalAlpha = al * (hot ? 1 : 0.7); ctx.drawImage(nvSprite(), cx - hs / 2, cy - hs / 2, hs, hs); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = al; }
+  // disc + glassy scene fill
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, 6.283); ctx.fillStyle = `rgba(${NVC.navy},.93)`; ctx.fill();
+  const img = thumbs[n.id], ok = img && img.complete && img.naturalWidth;
+  if (ok) {
+    ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, r * 0.97, 0, 6.283); ctx.clip();
+    if (r < 22) { ctx.globalAlpha = al * (watched ? 0.4 : 0.92); ctx.drawImage(img, cx - r * 1.78, cy - r, r * 3.56, r * 2); }
+    else {
+      ctx.globalAlpha = al * 0.22; ctx.drawImage(img, cx - r * 1.78, cy - r, r * 3.56, r * 2);
+      const tw = r * 1.34, th = tw * 9 / 16, tx = cx - tw / 2, ty = cy - th / 2 + r * 0.06;
+      ctx.globalAlpha = al * (watched ? 0.45 : 1); ctx.drawImage(img, tx, ty, tw, th); ctx.globalAlpha = al;
+      ctx.strokeStyle = `rgba(${NVC.core},.55)`; ctx.lineWidth = 1; ctx.strokeRect(tx + 0.5, ty + 0.5, tw - 1, th - 1);
+      if (r > 26) {   // barcode strip
+        const by = ty + th + r * 0.06, bh = Math.max(2, r * 0.07);
+        ctx.fillStyle = `rgba(${NVC.teal},.75)`; nvBars(n).forEach(([bx, bw]) => ctx.fillRect(tx + bx * tw, by, Math.max(0.8, bw * tw), bh));
+      }
+      if (r > 40) {   // title inside the porthole
+        const fs = clamp(r * 0.13, 8, 13), f = `600 ${fs}px "Noto Sans JP", sans-serif`;
+        const t = nvFit(n.title, r * 1.45, f, '_nvT', n);
+        ctx.font = f; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = 'rgba(240,248,255,.95)';
+        ctx.fillText(t, cx, ty - r * 0.07);
+      }
+      if (r > 52 && n.video.duration) { ctx.font = `500 ${clamp(r * 0.09, 8, 10)}px "JetBrains Mono", monospace`; ctx.fillStyle = `rgba(${NVC.ice},.9)`; ctx.textAlign = 'center'; ctx.fillText(n.video.duration, cx, ty + th + r * 0.27); }
+    }
+    ctx.restore();
+  } else { ctx.fillStyle = hexA(n.accent, 0.16); ctx.beginPath(); ctx.arc(cx, cy, r * 0.8, 0, 6.283); ctx.fill(); }
+  // rings: thick glowing outer ring + bright core + thin inner ring
+  nvRing(cx, cy, r, 0, 6.283, Math.max(1.8, r * 0.085), hot ? 'rgba(150,200,255,.95)' : `rgba(${NVC.ring},.92)`);
+  nvRing(cx, cy, r, 0, 6.283, Math.max(0.8, r * 0.028), hot ? '#fff' : `rgba(${NVC.core},.9)`);
+  nvRing(cx, cy, r * 0.86, 0, 6.283, 0.8, `rgba(${NVC.ice},.32)`);
+  // progress arc on the ring
+  const pc = pct(n.id);
+  if (pc > 0.02) nvRing(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + pc * 6.283, Math.max(2, r * 0.09), n.accent);
+  // rotating tick band + accent arc segments
+  if (r > 20 && !(eco && !hot)) {
+    const rt = r * 1.13, rot = T * 0.004 * (n.phase > 3 ? 1 : -1) + n.phase, N = r > 40 ? 72 : 40;
+    ctx.strokeStyle = `rgba(${NVC.ice},${hot ? 0.55 : 0.3})`; ctx.lineWidth = 1; ctx.beginPath();
+    for (let i = 0; i < N; i++) { if (i % 9 > 6) continue; const a = rot + i / N * 6.283, l = i % 9 === 0 ? r * 0.08 : r * 0.04; ctx.moveTo(cx + Math.cos(a) * rt, cy + Math.sin(a) * rt); ctx.lineTo(cx + Math.cos(a) * (rt + l), cy + Math.sin(a) * (rt + l)); }
+    ctx.stroke();
+    const ra = r * 1.27, rot2 = -T * 0.006 + n.phase * 2;
+    nvRing(cx, cy, ra, rot2, rot2 + 0.55, 1.6, hexA(n.accent, 0.9));
+    nvRing(cx, cy, ra, rot2 + Math.PI, rot2 + Math.PI + 0.3, 1, `rgba(${NVC.core},.5)`);
+  }
+  // badges
+  if (r > 22) {
+    ctx.font = '700 8px "JetBrains Mono", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const pill = (txt, x, y, bg) => { const tw = ctx.measureText(txt).width + 8; ctx.fillStyle = bg; rr(x - tw / 2, y - 6, tw, 12, 6); ctx.fill(); ctx.fillStyle = '#020616'; ctx.fillText(txt, x, y + 0.5); };
+    if (isNew(n.video)) pill('NEW', cx + r * 0.78, cy - r * 0.86, '#ff9a4d');
+    if (n.video.isShort) pill('SHORT', cx - r * 0.74, cy - r * 0.86, '#c9a2ff');
+  }
+  if (state.savedIds.includes(n.id)) { ctx.fillStyle = '#ffb066'; ctx.font = '700 12px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('★', cx + r * 0.72, cy + r * 0.74); }
+  if (watched && r > 16) { ctx.fillStyle = `rgb(${NVC.teal})`; ctx.font = '700 11px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('✓', cx - r * 0.72, cy + r * 0.74); }
+  ctx.restore();
+}
+
+function drawHubNV(n, al) {
+  const p = n.p, r = hubR(n), T = state.prefs.fx ? net.tick : 0, hov = net.hover === n, mob = isMobile();
+  ctx.save(); ctx.globalAlpha = al;
+  ctx.globalCompositeOperation = 'lighter'; const hs = r * (hov ? 3.8 : 3.1); ctx.drawImage(nvSprite(), p.x - hs / 2, p.y - hs / 2, hs, hs); ctx.globalCompositeOperation = 'source-over';
+  const g = ctx.createRadialGradient(p.x, p.y - r * 0.3, r * 0.1, p.x, p.y, r);
+  g.addColorStop(0, 'rgba(16,40,120,.96)'); g.addColorStop(1, 'rgba(2,7,30,.97)');
+  ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 6.283); ctx.fillStyle = g; ctx.fill();
+  nvRing(p.x, p.y, r, 0, 6.283, 2.6, hov ? '#fff' : 'rgba(110,170,255,.95)');
+  nvRing(p.x, p.y, r, 0, 6.283, 1, 'rgba(225,240,255,.95)');
+  ctx.setLineDash([2, 3]); nvRing(p.x, p.y, r * 0.87, 0, 6.283, 0.8, `rgba(${NVC.ice},.38)`); ctx.setLineDash([]);
+  const rt = r * 1.15, rot = T * 0.0018 + n.phase;
+  ctx.strokeStyle = `rgba(${NVC.ice},.42)`; ctx.lineWidth = 1; ctx.beginPath();
+  for (let i = 0; i < 60; i++) { const a = rot + i / 60 * 6.283, l = i % 5 === 0 ? r * 0.1 : r * 0.045; ctx.moveTo(p.x + Math.cos(a) * rt, p.y + Math.sin(a) * rt); ctx.lineTo(p.x + Math.cos(a) * (rt + l), p.y + Math.sin(a) * (rt + l)); }
+  ctx.stroke();
+  const ra = r * 1.33, a0 = -Math.PI / 2 + Math.sin(T * 0.01 + n.phase) * 0.3;
+  nvRing(p.x, p.y, ra, a0 - 0.45, a0 + 0.45, 2.4, hexA(n.accent, 0.95));
+  nvRing(p.x, p.y, ra, a0 + Math.PI - 0.2, a0 + Math.PI + 0.2, 1.2, 'rgba(225,240,255,.6)');
+  // centred title like the exhibition's series nodes ("INNOCENCE")
+  let fs = clamp(r * 0.3, 9, 15), nm = n.ch.name, lines = [nm];
+  ctx.font = `700 ${fs}px "Noto Sans JP", sans-serif`;
+  while (fs > 9 && ctx.measureText(nm).width > r * 1.62) { fs -= 0.5; ctx.font = `700 ${fs}px "Noto Sans JP", sans-serif`; }
+  if (ctx.measureText(nm).width > r * 1.62) {          // wrap to two lines inside the circle
+    const ch = Array.from(nm), half = Math.ceil(ch.length / 2);
+    lines = [nvFit(ch.slice(0, half).join(''), r * 1.5, ctx.font, '_nvH1', n), nvFit(ch.slice(half).join(''), r * 1.5, ctx.font, '_nvH2', n)];
+  }
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#f2f8ff';
+  const y0 = p.y - (mob ? 0 : fs * 0.35) - (lines.length - 1) * fs * 0.55;
+  lines.forEach((l, i) => ctx.fillText(l, p.x, y0 + i * fs * 1.1));
+  if (lines.length > 1) fs *= 1.5;
+  if (!mob || r > 30) {
+    ctx.font = `500 ${clamp(r * 0.16, 7, 9)}px "JetBrains Mono", monospace`; ctx.fillStyle = `rgba(${NVC.ice},.95)`;
+    ctx.fillText(`${String(n.count).padStart(2, '0')} NODES`, p.x, p.y + fs * 0.75);
+  }
+  n.lbl = { x: p.x - r * 1.3, y: p.y - r * 1.3, w: r * 2.6, h: r * 2.6 };
+  ctx.restore();
+}
+
+function drawCalloutNV(n) {
+  const g = n.g, T = state.prefs.fx ? net.tick : 0, cx = g.cx, cy = g.cy, R = g.r * 1.42, c = R * 0.28 + Math.sin(T * 0.08) * 2;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(225,240,255,.22)'; ctx.lineWidth = 1; ctx.strokeRect(cx - R, cy - R, R * 2, R * 2);
+  ctx.strokeStyle = 'rgba(235,245,255,.95)'; ctx.lineWidth = 1.6;
+  [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sy]) => { const x = cx + sx * R, y = cy + sy * R; ctx.beginPath(); ctx.moveTo(x - sx * c, y); ctx.lineTo(x, y); ctx.lineTo(x, y - sy * c); ctx.stroke(); });
+  ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(225,240,255,.7)';
+  const e = R * 0.38; ctx.beginPath();
+  ctx.moveTo(cx - R - e, cy); ctx.lineTo(cx - R, cy); ctx.moveTo(cx + R, cy); ctx.lineTo(cx + R + e, cy);
+  ctx.moveTo(cx, cy + R); ctx.lineTo(cx, cy + R + e); ctx.stroke();
+  // big rotating HUD ring
+  const rh = g.r * 1.62, rot = T * 0.003;
+  ctx.strokeStyle = `rgba(${NVC.ice},.45)`; ctx.beginPath();
+  for (let i = 0; i < 120; i++) { if (i % 30 > 24) continue; const a = rot + i / 120 * 6.283, l = i % 10 === 0 ? 7 : 3; ctx.moveTo(cx + Math.cos(a) * rh, cy + Math.sin(a) * rh); ctx.lineTo(cx + Math.cos(a) * (rh + l), cy + Math.sin(a) * (rh + l)); }
+  ctx.stroke();
+  nvRing(cx, cy, g.r * 1.08, 0, 6.283, 1, 'rgba(150,205,255,.6)');
+  // title pill on top of the frame
+  const f = '600 12px "Noto Sans JP", sans-serif', t = nvFit(n.title, Math.min(300, net.w * 0.6), f, '_nvP', n);
+  ctx.font = f; const tw = ctx.measureText(t).width + 26, px = clamp(cx - tw / 2, 8, net.w - tw - 8), py = cy - R - 30;
+  ctx.fillStyle = 'rgba(3,10,40,.9)'; rr(px, py, tw, 22, 11); ctx.fill();
+  ctx.strokeStyle = 'rgba(225,240,255,.85)'; ctx.lineWidth = 1; rr(px + 0.5, py + 0.5, tw - 1, 21, 10.5); ctx.stroke();
+  ctx.fillStyle = '#f4f9ff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(t, px + tw / 2, py + 11.5);
+  ctx.beginPath(); ctx.moveTo(cx, py + 22); ctx.lineTo(cx, cy - R); ctx.strokeStyle = 'rgba(225,240,255,.5)'; ctx.stroke();
+  if (!isMobile() && state.prefs.insOpen !== false) {
+    const ex = net.rightEdge - 8, sx = cx + R + e;
+    if (ex - sx > 60) {
+      ctx.strokeStyle = 'rgba(160,205,255,.5)'; ctx.setLineDash([3, 4]); ctx.beginPath(); ctx.moveTo(sx, cy); ctx.lineTo(ex, cy); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = '#cfe6ff'; ctx.fillRect(ex - 4, cy - 2, 4, 4);
+      ctx.font = '500 9px "JetBrains Mono", monospace'; ctx.textAlign = 'right'; ctx.textBaseline = 'alphabetic'; ctx.fillText(`ACCESS // ${n.id}`, ex - 8, cy - 6);
+    }
+  }
+  ctx.restore();
+}
+
+// ===== Data shape (console: Grid / Surround / Sphere) =====
+const SHAPES = ['sphere', 'grid', 'ring'];
+const SHAPE_JP = { sphere: 'SPHERE', grid: 'GRID', ring: 'SURROUND' };
+function shapeTargets() {
+  const sh = state.prefs.shape || 'sphere', H = net.hubs, V = net.vids;
+  if (sh === 'sphere' || !V.length) { [...H, ...V].forEach(n => { n.tx = n.bx; n.ty = n.by; n.tz = n.bz; }); return; }
+  const byCh = [...V].sort((a, b) => a.channelId < b.channelId ? -1 : a.channelId > b.channelId ? 1 : pubTime(b.video) - pubTime(a.video));
+  if (sh === 'grid') {
+    const Wu = clamp((net.stW || net.w) * 0.86 / net.R, 1.2, 4), Hu = clamp((net.stH || net.h) * 0.74 / net.R, 1.2, 3.2);
+    const N = byCh.length, asp = Wu / Hu, cols = Math.max(2, Math.ceil(Math.sqrt(N * asp))), rows = Math.ceil(N / cols);
+    const s = Math.min(Wu / cols, Hu / (rows + 0.8), 0.62);
+    byCh.forEach((n, i) => { const c = i % cols, r = Math.floor(i / cols); n.tx = (c - (cols - 1) / 2) * s; n.ty = ((rows - 1) / 2 - r) * s - 0.1; n.tz = 0.2; });
+    const top = (rows - 1) / 2 * s + Math.max(0.24, s * 0.9), hs = Math.min(0.5, Wu / Math.max(H.length, 1));
+    H.forEach((n, i) => { n.tx = (i - (H.length - 1) / 2) * hs; n.ty = top; n.tz = 0.25; });
+    return;
+  }
+  const N = byCh.length, rowsN = N > 36 ? 3 : 2, per = Math.ceil(N / rowsN);
+  byCh.forEach((n, i) => { const row = i % rowsN, k = Math.floor(i / rowsN), a = (k + row * 0.5) / per * Math.PI * 2; n.tx = Math.cos(a) * 1.26; n.tz = Math.sin(a) * 1.26; n.ty = (row - (rowsN - 1) / 2) * 0.34; });
+  H.forEach((n, i) => { const a = i / Math.max(H.length, 1) * Math.PI * 2, rad = H.length === 1 ? 0 : 0.62; n.tx = Math.cos(a) * rad; n.tz = Math.sin(a) * rad; n.ty = 0; });
+}
+function setShape(sh, quiet) {
+  state.prefs.shape = sh; savePrefs(); shapeTargets();
+  const b = $('shapeBtn'); if (b) b.textContent = 'SHAPE: ' + SHAPE_JP[sh];
+  if (sh === 'grid') { let a = Math.round(net.yaw / (Math.PI * 2)) * Math.PI * 2; net.tYaw = a; net.tPitch = 0; net.vYaw = 0; }
+  else if (sh === 'ring') { net.tYaw = net.yaw; net.tPitch = 0.38; }
+  else { net.tYaw = net.yaw; net.tPitch = 0.12; }
+  if (!quiet) { SFX.ui && SFX.ui(); syslog(`DATA SHAPE >> ${SHAPE_JP[sh]}`); }
+  markActive();
+}
+function stepShape() {
+  [...net.hubs, ...net.vids].forEach(n => { if (n.tx === undefined) return; n.x += (n.tx - n.x) * 0.075; n.y += (n.ty - n.y) * 0.075; n.z += (n.tz - n.z) * 0.075; });
+}
+
 function drawVid(n, al) {
+  if (NV()) return drawVidNV(n, al);
   const g = n.g, hov = net.hover === n, ins = state.inspected === n.id;
   const watched = state.watchedIds.includes(n.id);
   ctx.save(); ctx.globalAlpha = al;
@@ -1740,7 +2014,7 @@ function drawVid(n, al) {
 function drawLabels(dim) {
   const mode = state.prefs.labels, placed = net.hubs.filter(h => h.lbl).map(h => h.lbl);
   const forced = n => net.hover === n || state.inspected === n.id;
-  const cands = net.vids.filter(n => n.g && !n.g.dot && dim(n) > 0.5 && (
+  const cands = net.vids.filter(n => n.g && !n.g.dot && dim(n) > 0.5 && !(NV() && state.inspected === n.id) && (
     forced(n) || n.lens > 0.22 || (state.q.trim() && n.match) ||
     (mode === 'all') || (mode === 'auto' && n.p.z > 0.3 && n.g.w > 48)
   ));
@@ -1758,7 +2032,7 @@ function drawLabels(dim) {
     const wr = wrapTitle(n, maxW, fs);
     const meta = `${relTime(n.video)} · ${n.video.duration || ''}`;
     const lh = fs * 1.35, bw = Math.max(wr.w, 90) + 14, bh = wr.lines.length * lh + 8 + 13;
-    const box = { x: n.p.x - bw / 2, y: n.g.y + n.g.h + 4, w: bw, h: bh };
+    const box = { x: n.p.x - bw / 2, y: n.g.y + n.g.h + (NV() ? n.g.r * 0.36 + 5 : 4), w: bw, h: bh };
     if (!f) {
       if (placed.some(b => hit(b, box))) continue;
       if (cards.some(c => c.n !== n && c.n.p.z > n.p.z && hit(c, box))) continue;
@@ -1766,19 +2040,26 @@ function drawLabels(dim) {
     placed.push(box); shown++;
     ctx.save();
     ctx.globalAlpha = f ? 1 : clamp(0.55 + n.p.z * 0.5, 0.55, 1);
+    if (NV()) {
+      ctx.fillStyle = 'rgba(3,10,40,.86)'; rr(box.x, box.y, box.w, box.h, 7); ctx.fill();
+      ctx.strokeStyle = f ? 'rgba(235,245,255,.9)' : 'rgba(170,210,255,.38)'; ctx.lineWidth = 1; rr(box.x + .5, box.y + .5, box.w - 1, box.h - 1, 6.5); ctx.stroke();
+      ctx.fillStyle = n.accent; ctx.beginPath(); ctx.arc(box.x + 4.5, box.y + 9, 1.8, 0, 6.283); ctx.fill();
+    } else {
     ctx.fillStyle = `rgba(${TH.pn},.9)`; ctx.fillRect(box.x, box.y, box.w, box.h);
     ctx.fillStyle = n.accent; ctx.fillRect(box.x, box.y, 2, box.h);
     if (f) { ctx.strokeStyle = hexA(n.accent, 0.8); ctx.lineWidth = 1; ctx.strokeRect(box.x + .5, box.y + .5, box.w - 1, box.h - 1); }
+    }
     ctx.font = `500 ${fs}px "Noto Sans JP", sans-serif`; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
     ctx.fillStyle = f ? `rgb(${TH.hi})` : `rgba(${TH.hi},.86)`;
     wr.lines.forEach((l, i) => ctx.fillText(l, box.x + 8, box.y + 5 + i * lh));
-    ctx.font = '500 9px "JetBrains Mono", monospace'; ctx.fillStyle = hexA(n.accent, 0.95);
+    ctx.font = '500 9px "JetBrains Mono", monospace'; ctx.fillStyle = NV() ? 'rgba(150,205,255,.95)' : hexA(n.accent, 0.95);
     ctx.fillText(meta, box.x + 8, box.y + 6 + wr.lines.length * lh);
     ctx.restore();
   }
 }
 
 function drawHub(n, al) {
+  if (NV()) return drawHubNV(n, al);
   const p = n.p, r = n.r * p.k * net.scaleR * net.zoom * p.mag, T = state.prefs.fx ? net.tick : 0, hov = net.hover === n;
   ctx.save(); ctx.globalAlpha = al;
   ctx.strokeStyle = hexA(n.accent, 0.55); ctx.lineWidth = 1; ctx.setLineDash([3, 4]);
@@ -1802,6 +2083,7 @@ function drawHub(n, al) {
 }
 
 function drawCallout(n) {
+  if (NV()) return drawCalloutNV(n);
   const g = n.g, T = state.prefs.fx ? net.tick : 0, c = 10 + Math.sin(T * 0.08) * 2;
   ctx.save(); ctx.strokeStyle = n.accent; ctx.lineWidth = 2;
   const x0 = g.x - 7, y0 = g.y - 7, x1 = g.x + g.w + 7, y1 = g.y + g.h + 7;
@@ -2167,7 +2449,7 @@ function drawDepthFx(T) {
     if (r.delay > 0) { r.delay--; return; }
     r.r += r.v; r.v *= r.v > 0 ? 1.06 : 1.02; r.a *= 0.94; r.rot += 0.02;
     ctx.strokeStyle = hexA(r.col, r.a); ctx.lineWidth = 2;
-    drawHex(r.x, r.y, Math.abs(r.r), r.rot); ctx.stroke();
+    if (NV()) { ctx.beginPath(); ctx.arc(r.x, r.y, Math.abs(r.r), 0, 6.283); } else drawHex(r.x, r.y, Math.abs(r.r), r.rot); ctx.stroke();
   });
   const d = net.depth; if (!d) return;
   const t = clamp((performance.now() - d.t0) / d.dur, 0, 1), al = d.phase === 1 ? t : 1 - t;
@@ -2795,6 +3077,7 @@ function applyPrefs() {
   $('fxBtn').textContent = state.prefs.fx ? 'FX: ON' : 'FX: OFF'; $('fxBtn').classList.toggle('on', state.prefs.fx);
   $('rotBtn').classList.toggle('on', state.prefs.autoRot);
   $('labelBtn').textContent = 'LABEL: ' + state.prefs.labels.toUpperCase();
+  $('shapeBtn').textContent = 'SHAPE: ' + SHAPE_JP[state.prefs.shape || 'sphere'];
   $('sfxBtn').textContent = 'SFX: ' + (state.prefs.sfx ? 'ON' : 'OFF'); $('sfxBtn').classList.toggle('on', !!state.prefs.sfx); updateCCBtn();
   $('ecoBtn').textContent = 'ECO: ' + state.prefs.eco.toUpperCase() + (state.prefs.eco === 'auto' ? (ECO() ? '·ON' : '·OFF') : '');
   $('ecoBtn').classList.toggle('on', ECO());
@@ -2839,6 +3122,7 @@ function initEvents() {
   $('sEco').onchange = e => setEco(e.target.value);
   const cycleLabel = () => { const o = ['auto', 'all', 'off']; state.prefs.labels = o[(o.indexOf(state.prefs.labels) + 1) % 3]; savePrefs(); applyPrefs(); };
   $('labelBtn').onclick = cycleLabel;
+  $('shapeBtn').onclick = () => setShape(SHAPES[(SHAPES.indexOf(state.prefs.shape || 'sphere') + 1) % SHAPES.length]);
   if (IS_TOUCH && 'DeviceOrientationEvent' in window) { $('tiltBtn').style.display = ''; $('tiltBtn').onclick = toggleTilt; }
   $('syncBtn').onclick = () => sync(false);
   $('helpBtn').onclick = () => $('helpModal').classList.add('show');
@@ -2963,6 +3247,7 @@ function initEvents() {
     else if (k === 'w' && state.inspected) toggleWatched(state.inspected);
     else if (k === 'g') setMode(state.mode === 'nerve' ? 'grid' : 'nerve');
     else if (k === 'l') cycleLabel();
+    else if (k === 'h') $('shapeBtn').click();
     else if (k === 't') openThemes();
     else if (e.key === '[' && !isMobile()) setPanel('railOpen', state.prefs.railOpen === false);
     else if (e.key === ']' && !isMobile()) setPanel('insOpen', state.prefs.insOpen === false);
@@ -2983,7 +3268,7 @@ function initEvents() {
 // =============================================================================
 function boot() {
   const lines = [
-    '<span class="c">MY NERVE TUBE NET</span> // GHOST ARCHIVE TUNER  v7.3',
+    '<span class="c">MY NERVE TUBE NET</span> // GHOST ARCHIVE TUNER  v8.0',
     '> MAGI SYSTEM: MELCHIOR·1 / BALTHASAR·2 / CASPER·3 ... ONLINE',
     '> initializing cyberbrain interface ........ OK',
     `> mounting ${state.channels.length} hubs / ${state.videos.length} memory nodes ... OK`,
