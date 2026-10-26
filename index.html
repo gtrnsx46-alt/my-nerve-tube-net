@@ -347,7 +347,7 @@ body.playing #app,body.playing #net,body.playing .fx-layer{visibility:hidden}
 body.playing #playerModal{background:#000;backdrop-filter:none;-webkit-backdrop-filter:none}
 body.modal-open .fx-layer{display:none}
 body.modal-open #app *,body.modal-open #app *::before,body.modal-open #app *::after{animation-play-state:paused!important}
-body.eco .frame,body.eco .magibar,body.eco #chBar{backdrop-filter:none;-webkit-backdrop-filter:none}
+body.eco .frame,body.eco .magibar,body.eco #chBar,body.q-lo .frame,body.q-lo .magibar,body.q-lo #chBar,[data-theme=nerve] .frame,[data-theme=nerve] #chBar{backdrop-filter:none;-webkit-backdrop-filter:none}
 body.eco .frame{background:rgba(var(--pn-rgb),.93)}
 body.eco .modal{backdrop-filter:none;-webkit-backdrop-filter:none;background:rgba(var(--pn-rgb),.96)}
 body.eco #fxSweep,body.eco #fxScan{display:none}
@@ -878,6 +878,7 @@ body.playing #deco{visibility:hidden}
       <div class="blk">
         <span class="lbl"><b>◢</b> DISPLAY — 表示</span>
         <div class="set"><div><div>レンズ強度</div><div class="d">カーソル/指の周りのノードを拡大し、周囲を押し退ける強さ</div></div><input type="range" id="sLens" min="0" max="1.5" step="0.1" /></div>
+        <div class="set"><div><div>描画品質（軽量化）</div><div class="d">動きがカクつく場合は「標準」や「軽量」に。軽量：30fps・解像度を抑え、リングの回転や光彩を省略し、背景の粒子を間引きます ／ AUTO：動作が重いと自動で段階的に下げます（スマホは軽量から開始）</div></div><select id="sQual" class="fsel"><option value="auto">AUTO</option><option value="high">高画質</option><option value="mid">標準</option><option value="low">軽量</option></select></div>
         <div class="set"><div><div>省電力モード</div><div class="d">ON：描画を30fps・低解像度にし、ぼかし等の重い効果を止めます。しばらく操作がないとさらに減速。再生中・MATRIX表示中は球体の計算を完全停止します（これは常に有効）。AUTO＝スマホ/タブレットでON</div></div><select id="sEco" class="fsel"><option value="auto">AUTO</option><option value="on">ON</option><option value="off">OFF</option></select></div>
         <div class="set"><div><div>効果音</div><div class="d">ノードの移動・選択・ダイブ・MAGI審議などに電子音を付けます（再生中は自動で無音）</div></div><span style="display:flex;gap:10px;align-items:center"><input type="range" id="sVol" min="0" max="1" step="0.05" /><input type="checkbox" id="sSfx" /></span></div>
         <div class="set"><div><div>球体を回すときの音</div><div class="d">電子音：小さな「ピッ」というデータ音がまばらに鳴る ／ 風：低くやわらかい風の音 ／ なし</div></div><span style="display:flex;gap:10px;align-items:center"><input type="range" id="sRotVol" min="0" max="1" step="0.05" title="音量" /><select id="sRot" class="fsel"><option value="chirp">電子音</option><option value="air">風</option><option value="off">なし</option></select></span></div>
@@ -1020,7 +1021,7 @@ const store = {
   get(k, f) { try { const r = localStorage.getItem(k); return r ? JSON.parse(r) : f; } catch (e) { return f; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { if (!store._warned) { store._warned = true; setTimeout(() => toast('⚠ 端末の保存容量が上限です。一部のデータが保存されていません'), 0); } return false; } }
 };
-const DEFAULT_PREFS = { theme: 'nerve', railOpen: true, insOpen: true, chBarOpen: null, iosMode: 'tap', searchOpen: null, diveFull: true, rot: 'chirp', rotVol: 0.5, cc: 'off', sfx: true, vol: 0.6, dive: true, shorts: 'exclude', latestDays: 30, newDays: 3, newSinceVisit: true, lens: 1, parallax: true, labels: 'auto', shape: 'sphere', density: 1, autoNext: true, autoRot: true, fx: true, eco: 'auto' };
+const DEFAULT_PREFS = { theme: 'nerve', railOpen: true, insOpen: true, chBarOpen: null, iosMode: 'tap', searchOpen: null, diveFull: true, rot: 'chirp', rotVol: 0.5, cc: 'off', sfx: true, vol: 0.6, dive: true, shorts: 'exclude', latestDays: 30, newDays: 3, newSinceVisit: true, lens: 1, parallax: true, labels: 'auto', shape: 'sphere', quality: 'auto', density: 1, autoNext: true, autoRot: true, fx: true, eco: 'auto' };
 const state = {
   channels: store.get('aether_channels_v1', []),
   videos: store.get('aether_videos_v1', []),
@@ -1155,7 +1156,7 @@ function getList(applySearch) {
 // 5. NERVE NET ENGINE  — 3D sphere + lens field + pointer physics
 // =============================================================================
 const canvas = $('net');
-const ctx = canvas.getContext('2d');
+let ctx = canvas.getContext('2d');
 const D = 3.2;
 const net = {
   w: 0, h: 0, dpr: 1, cx: 0, cy: 0, R: 200, scaleR: 1, rightEdge: 0,
@@ -1169,7 +1170,7 @@ const thumbs = {};
 function thumb(id) { if (!thumbs[id]) { const im = new Image(); im.decoding = 'async'; im.src = `https://i.ytimg.com/vi/${id}/mqdefault.jpg`; thumbs[id] = im; } return thumbs[id]; }
 
 function resize() {
-  net.dpr = Math.min(window.devicePixelRatio || 1, ECO() ? 1.5 : 2);
+  net.dpr = Math.min(window.devicePixelRatio || 1, ECO() ? 1.5 : 2, [1.5, 1.75, 2][typeof QL === 'function' ? QL() : 2]);
   net.w = window.innerWidth; net.h = window.innerHeight;
   canvas.width = net.w * net.dpr; canvas.height = net.h * net.dpr;
   ctx.setTransform(net.dpr, 0, 0, net.dpr, 0, 0);
@@ -1620,6 +1621,7 @@ const loop = { raf: 0, last: 0, act: performance.now(), paused: false, drawnWhil
 function shouldPause() { return document.hidden || state.mode !== 'nerve' || MODALS.some(m => $(m).classList.contains('show')); }
 function targetFps() {
   const idle = performance.now() - loop.act;
+  if (QL() === 0) return idle > 90000 ? 8 : idle > 20000 ? 15 : 30;
   if (!ECO()) return idle > 120000 ? 30 : 60;
   if (net.ptr.str > 0.05 || net.drag || net.tYaw !== null) return 30;
   return idle > 90000 ? 8 : idle > 20000 ? 15 : 30;
@@ -1634,7 +1636,7 @@ function tick(t) {
   loop.raf = requestAnimationFrame(tick);
   const fps = targetFps();
   if (fps < 60 && t - loop.last < 1000 / fps - 3) return;
-  loop.last = t; frame();
+  loop.last = t; perfSample(t); frame();
 }
 function wake() { loop.act = performance.now(); if (!loop.raf && !shouldPause()) loop.raf = requestAnimationFrame(tick); }
 function markActive() { loop.act = performance.now(); if (!loop.raf) wake(); }
@@ -1737,15 +1739,24 @@ function frame() {
 
   // links
   const gridK = state.prefs.shape === 'grid' ? 0.35 : 1;
-  if (NV()) net.links.forEach(l => {
-    const a = l.a.p, b = l.b.p;
-    const hl = net.hover === l.a || net.hover === l.b || (state.inspected && (l.b.id === state.inspected || l.a.id === state.inspected));
-    const al = dA((a.z + b.z) / 2) * Math.min(dim(l.a), dim(l.b)) * (hl ? 1 : gridK);
-    ctx.setLineDash(l.kind === 'x' ? [2, 6] : []);
-    ctx.strokeStyle = hl ? 'rgba(240,248,255,.9)' : l.kind === 'bb' ? `rgba(200,225,255,${0.34 * al})` : l.kind === 'x' ? `rgba(255,255,255,${0.08 * al})` : `rgba(230,238,255,${0.2 * al})`;
-    ctx.lineWidth = hl ? 1.4 : l.kind === 'bb' ? 1.1 : 0.8;
-    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-  });
+  if (NV()) {
+    const P = {}, hiP = new Path2D(); let hiAny = false;
+    net.links.forEach(l => {
+      const a = l.a.p, b = l.b.p;
+      const hl = net.hover === l.a || net.hover === l.b || (state.inspected && (l.b.id === state.inspected || l.a.id === state.inspected));
+      if (hl) { hiP.moveTo(a.x, a.y); hiP.lineTo(b.x, b.y); hiAny = true; return; }
+      const al = dA((a.z + b.z) / 2) * Math.min(dim(l.a), dim(l.b)) * gridK, k = l.kind + Math.min(3, Math.floor(al * 4));
+      (P[k] || (P[k] = new Path2D())).moveTo(a.x, a.y); P[k].lineTo(b.x, b.y);
+    });
+    Object.keys(P).forEach(k => {
+      const kind = k.slice(0, -1), al = (+k.slice(-1) + 0.5) / 4;
+      ctx.setLineDash(kind === 'x' ? [2, 6] : []);
+      ctx.strokeStyle = kind === 'bb' ? `rgba(200,225,255,${0.34 * al})` : kind === 'x' ? `rgba(255,255,255,${0.08 * al})` : `rgba(230,238,255,${0.2 * al})`;
+      ctx.lineWidth = kind === 'bb' ? 1.1 : 0.8; ctx.stroke(P[k]);
+    });
+    ctx.setLineDash([]);
+    if (hiAny) { ctx.strokeStyle = 'rgba(240,248,255,.9)'; ctx.lineWidth = 1.4; ctx.stroke(hiP); }
+  }
   else net.links.forEach(l => {
     const a = l.a.p, b = l.b.p;
     const hl = net.hover === l.a || net.hover === l.b || (state.inspected && (l.b.id === state.inspected || l.a.id === state.inspected));
@@ -1760,13 +1771,14 @@ function frame() {
   ctx.setLineDash([]);
 
   // pulses
-  if (state.prefs.fx) net.pulses.forEach(pu => {
+  if (state.prefs.fx) net.pulses.forEach((pu, pi) => {
+    if (QL() === 0 && pi % 3) return;
     pu.t += pu.sp; if (pu.t > 1) { pu.t = 0; pu.rev = !pu.rev; }
     const A = pu.l.a.p, B = pu.l.b.p, cv = NV() ? 0 : 0.08, mx = (A.x + B.x) / 2 + (A.y - B.y) * cv, my = (A.y + B.y) / 2 + (B.x - A.x) * cv;
     const t = pu.rev ? 1 - pu.t : pu.t;
     const x = (1 - t) * (1 - t) * A.x + 2 * (1 - t) * t * mx + t * t * B.x, y = (1 - t) * (1 - t) * A.y + 2 * (1 - t) * t * my + t * t * B.y;
     const col = NV() ? '#d8ecff' : (pu.rev ? pu.l.a : pu.l.b).accent, al = dA((A.z + B.z) / 2) * Math.min(dim(pu.l.a), dim(pu.l.b));
-    ctx.fillStyle = hexA(col, al); if (!ECO()) { ctx.shadowColor = col; ctx.shadowBlur = 8; }
+    ctx.fillStyle = hexA(col, al); if (!ECO() && QL() === 2) { ctx.shadowColor = col; ctx.shadowBlur = 8; }
     ctx.beginPath(); ctx.arc(x, y, 1.8 * A.k, 0, Math.PI * 2); ctx.fill();
   });
   ctx.shadowBlur = 0;
@@ -1807,8 +1819,43 @@ function nvSprite(rgb = '64,132,255') {
   gr.addColorStop(0, `rgba(${rgb},.5)`); gr.addColorStop(0.42, `rgba(${rgb},.24)`); gr.addColorStop(0.7, `rgba(${rgb},.07)`); gr.addColorStop(1, `rgba(${rgb},0)`);
   g.fillStyle = gr; g.fillRect(0, 0, s, s); return (nvGlow[rgb] = c);
 }
+
+// ===== Rendering quality (軽量化) =====
+// high: full effects / mid: half-res background, fewer animated rings / low: 30fps, 1x resolution, static rings
+const QNAME = { auto: 'AUTO', high: '高画質', mid: '標準', low: '軽量' };
+function QL() { const q = state.prefs.quality || 'auto'; let l = q === 'high' ? 2 : q === 'mid' ? 1 : q === 'low' ? 0 : (net.autoQ !== undefined ? net.autoQ : (IS_TOUCH ? 0 : 2)); if (ECO() && q === 'auto') l = Math.min(l, 1); return l; }
+const nvCache = new Map();
+function nvStamp(key, S, draw) {
+  let c = nvCache.get(key); if (c) return c;
+  if (nvCache.size > 600) nvCache.clear();
+  c = document.createElement('canvas'); const d = net.dpr || 1; c.width = Math.ceil(S * d); c.height = Math.ceil(S * d);
+  const prev = ctx; ctx = c.getContext('2d'); ctx.setTransform(d, 0, 0, d, 0, 0);
+  try { draw(); } finally { ctx = prev; }
+  nvCache.set(key, c); return c;
+}
+function setQuality(q, quiet) {
+  state.prefs.quality = q; if (q !== 'auto') net.autoQ = undefined; savePrefs();
+  applyQuality(); if (!quiet) toast(`描画品質：${QNAME[q]}${q === 'auto' ? `（現在 ${['軽量', '標準', '高画質'][QL()]}）` : ''}`);
+}
+function applyQuality() {
+  document.body.classList.toggle('q-lo', QL() < 2);
+  nvCache.clear(); net.nebAge = 1e9; resize();
+  if ($('sQual')) $('sQual').value = state.prefs.quality || 'auto';
+  if (typeof loop !== 'undefined') { loop.drawnWhilePaused = false; wake(); }
+}
+const perf = { ema: 16.7, last: 0, n: 0 };
+function perfSample(t) {          // AUTO: step the quality down when frames keep arriving late
+  const dt = perf.last ? t - perf.last : 0; perf.last = t;
+  if ((state.prefs.quality || 'auto') !== 'auto' || !dt || dt > 250 || document.hidden) return;
+  const tgt = 1000 / targetFps(); if (tgt > 20) return;              // only judge while running at full rate
+  perf.ema += (dt - perf.ema) * 0.05; perf.n++;
+  if (perf.n > 150 && perf.ema > tgt * 1.5 && QL() > 0) {
+    net.autoQ = QL() - 1; perf.n = 0; perf.ema = tgt; applyQuality();
+    toast(`動作が重いため描画品質を「${['軽量', '標準'][net.autoQ]}」に下げました（設定で変更できます）`);
+  }
+}
 function hubR(n) { return n.r * n.p.k * net.scaleR * net.zoom * n.p.mag * (NV() ? 1.55 : 1); }
-function nvBob(n, T) { if (!state.prefs.fx) return [0, 0, 0]; const t = T * 0.011 + n.phase * 3.1; return [Math.sin(t) * 0.014, Math.sin(t * 0.83 + 1.3) * 0.016, Math.cos(t * 0.7) * 0.014]; }
+function nvBob(n, T) { if (!state.prefs.fx || QL() === 0) return [0, 0, 0]; const t = T * 0.011 + n.phase * 3.1; return [Math.sin(t) * 0.014, Math.sin(t * 0.83 + 1.3) * 0.016, Math.cos(t * 0.7) * 0.014]; }
 
 function buildNeb() {
   const r = rng(7); net.neb = []; net.spk = [];
@@ -1821,34 +1868,49 @@ function buildNeb() {
 }
 
 function nvBack(T, L) {
+  const { w, h } = net, q = QL();
+  if (!net.neb) buildNeb();
+  const every = (net.drag || net.pinch) ? 2 : [5, 3, 3][q];
+  const sc = [0.5, 0.6, 0.8][q] * net.dpr, W = Math.ceil(w * sc), H = Math.ceil(h * sc);
+  if (!net.nebC) net.nebC = document.createElement('canvas');
+  const L2 = net.nebC;
+  net.nebAge = (net.nebAge || 0) + 1;
+  if (L2.width !== W || L2.height !== H || net.nebAge >= every) {
+    net.nebAge = 0; if (L2.width !== W || L2.height !== H) { L2.width = W; L2.height = H; }
+    const prev = ctx; ctx = L2.getContext('2d'); ctx.setTransform(sc, 0, 0, sc, 0, 0);
+    try { nvBackDraw(T, q); } finally { ctx = prev; }
+  }
+  ctx.drawImage(L2, 0, 0, w, h);
+}
+function nvBackDraw(T, q) {
   const { w, h, cx, cy } = net;
-  // projection-room haze: deep royal blue fading to black
+  ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
   ctx.fillStyle = '#000'; ctx.fillRect(0, 0, w, h);
   const hz = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) * 0.6);
   hz.addColorStop(0, 'rgba(20,26,44,.35)'); hz.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = hz; ctx.fillRect(0, 0, w, h);
-  if (!net.neb) buildNeb();
-  const eco = ECO(), sw = T * 0.00045, cs = Math.cos(sw), sn = Math.sin(sw);
-  ctx.save(); ctx.globalCompositeOperation = 'lighter';
-  const cols = ['255,255,255', '214,226,255', '240,244,250'];
-  for (let i = 0; i < net.neb.length; i += eco ? 2 : 1) {
+  const step = [4, 2, 1][q], sw = T * 0.00045, cs = Math.cos(sw), sn = Math.sin(sw), fx = state.prefs.fx;
+  const cols = ['255,255,255', '214,226,255', '240,244,250'], B = 5;
+  const paths = Array.from({ length: 3 * B }, () => new Path2D()); const used = new Uint8Array(3 * B);
+  for (let i = 0; i < net.neb.length; i += step) {
     const d = net.neb[i], x = d.x * cs - d.z * sn, z = d.x * sn + d.z * cs;
-    const p = project(x, d.y, z); if (p.k <= 0) continue;
-    const front = clamp((p.z + 1.6) / 3.2, 0, 1), tw = state.prefs.fx ? 0.65 + 0.35 * Math.sin(T * 0.03 + d.ph) : 0.8;
-    ctx.fillStyle = `rgba(${cols[d.c]},${(0.12 + front * 0.5) * tw})`;
-    const s = d.s * p.k * (0.8 + front * 0.6); ctx.fillRect(p.x - s / 2, p.y - s / 2, s, s);
+    const p = project(x, d.y, z); if (p.k <= 0 || p.x < -4 || p.y < -4 || p.x > w + 4 || p.y > h + 4) continue;
+    const front = clamp((p.z + 1.6) / 3.2, 0, 1), tw = fx ? 0.65 + 0.35 * Math.sin(T * 0.03 + d.ph) : 0.8;
+    const a = (0.12 + front * 0.5) * tw * (step > 1 ? 1.25 : 1), k = d.c * B + Math.min(B - 1, Math.floor(a / 0.62 * B));
+    const s = d.s * p.k * (0.8 + front * 0.6) * (step > 2 ? 1.3 : 1); paths[k].rect(p.x - s / 2, p.y - s / 2, s, s); used[k] = 1;
   }
-  // far stars
-  net.dust.forEach(d => { const p = project(d.x * 1.5, d.y * 1.5, d.z * 1.5); d.p = p; const tw = state.prefs.fx ? (Math.sin(T * 0.04 + d.tw) + 1) / 2 : 0.5; ctx.fillStyle = `rgba(220,235,255,${0.12 + tw * 0.35})`; ctx.fillRect(p.x - 0.6, p.y - 0.6, 1.2, 1.2); });
-  // "+" glints
+  for (let k = 0; k < 3 * B; k++) if (used[k]) { ctx.fillStyle = `rgba(${cols[Math.floor(k / B)]},${((k % B) + 0.5) / B * 0.62})`; ctx.fill(paths[k]); }
+  const st = new Path2D();
+  net.dust.forEach(d => { const p = project(d.x * 1.5, d.y * 1.5, d.z * 1.5); d.p = p; st.rect(p.x - 0.6, p.y - 0.6, 1.2, 1.2); });
+  ctx.fillStyle = 'rgba(220,235,255,.32)'; ctx.fill(st);
+  const gl = new Path2D(), dots = new Path2D();
   net.spk.forEach(s => {
-    const p = project(s.x, s.y, s.z), tw = state.prefs.fx ? 0.55 + 0.45 * Math.sin(T * 0.025 * s.sp + s.ph) : 0.8;
-    const len = s.s * p.k * tw, al = (0.25 + clamp((p.z + 1.5) / 3, 0, 1) * 0.6) * tw;
-    ctx.strokeStyle = `rgba(225,240,255,${al})`; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(p.x - len, p.y); ctx.lineTo(p.x + len, p.y); ctx.moveTo(p.x, p.y - len); ctx.lineTo(p.x, p.y + len); ctx.stroke();
-    if (s.s > 9) { ctx.fillStyle = `rgba(200,225,255,${al * 0.5})`; ctx.beginPath(); ctx.arc(p.x, p.y, 1.6 * p.k, 0, 6.283); ctx.fill(); }
+    const p = project(s.x, s.y, s.z), tw = fx ? 0.55 + 0.45 * Math.sin(T * 0.025 * s.sp + s.ph) : 0.8, len = s.s * p.k * tw;
+    gl.moveTo(p.x - len, p.y); gl.lineTo(p.x + len, p.y); gl.moveTo(p.x, p.y - len); gl.lineTo(p.x, p.y + len);
+    if (s.s > 9) { dots.moveTo(p.x + 1.6 * p.k, p.y); dots.arc(p.x, p.y, 1.6 * p.k, 0, 6.283); }
   });
-  ctx.restore();
+  ctx.strokeStyle = 'rgba(225,240,255,.62)'; ctx.lineWidth = 1; ctx.stroke(gl);
+  ctx.fillStyle = 'rgba(200,225,255,.35)'; ctx.fill(dots);
 }
 
 function nvGeom(n) {
@@ -1870,28 +1932,19 @@ function nvFit(text, maxW, font, key, n) {
 }
 function nvRing(x, y, r, a0, a1, lw, col) { ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.beginPath(); ctx.arc(x, y, r, a0, a1); ctx.stroke(); }
 
-function drawVidNV(n, al) {
-  const g = n.g, hov = net.hover === n, ins = state.inspected === n.id, T = state.prefs.fx ? net.tick : 0;
-  const watched = state.watchedIds.includes(n.id), eco = ECO();
-  ctx.save(); ctx.globalAlpha = al;
-  const rc = n.rc || (n.rc = nvCol(n.channelId));
-  if (g.dot) {   // far: a small glowing bubble
-    ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(nvSprite(rc), g.x - g.r * 3, g.y - g.r * 3, g.r * 6, g.r * 6);
-    nvRing(g.x, g.y, g.r, 0, 6.283, 1.2, `rgba(${rc},.9)`); ctx.restore(); return;
-  }
-  const { cx, cy, r } = g, hot = hov || ins || n.lens > 0.3;
+function nvVidBody(n, cx, cy, r, hot, watched, ok, img, glow, rc) {
+  ctx.save();
   // halo
-  if (!eco || hot) { ctx.globalCompositeOperation = 'lighter'; const hs = r * (hot ? 3.4 : 2.7); ctx.globalAlpha = al * (hot ? 1 : 0.7); ctx.drawImage(nvSprite(rc), cx - hs / 2, cy - hs / 2, hs, hs); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = al; }
+  if (glow) { ctx.globalCompositeOperation = 'lighter'; const hs = r * (hot ? 3.4 : 2.7); ctx.globalAlpha = hot ? 1 : 0.7; ctx.drawImage(nvSprite(rc), cx - hs / 2, cy - hs / 2, hs, hs); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; }
   // disc + glassy scene fill
   ctx.beginPath(); ctx.arc(cx, cy, r, 0, 6.283); ctx.fillStyle = 'rgba(2,3,8,.95)'; ctx.fill();
-  const img = thumbs[n.id], ok = img && img.complete && img.naturalWidth;
   if (ok) {
     ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, r * 0.97, 0, 6.283); ctx.clip();
-    if (r < 22) { ctx.globalAlpha = al * (watched ? 0.4 : 0.92); ctx.drawImage(img, cx - r * 1.78, cy - r, r * 3.56, r * 2); }
+    if (r < 22) { ctx.globalAlpha = watched ? 0.4 : 0.92; ctx.drawImage(img, cx - r * 1.78, cy - r, r * 3.56, r * 2); }
     else {
-      ctx.globalAlpha = al * 0.12; ctx.drawImage(img, cx - r * 1.78, cy - r, r * 3.56, r * 2);
+      ctx.globalAlpha = 0.12; ctx.drawImage(img, cx - r * 1.78, cy - r, r * 3.56, r * 2);
       const tw = r * 1.58, th = tw * 9 / 16, tx = cx - tw / 2, ty = cy - th / 2 + (r > 40 ? r * 0.08 : 0);
-      ctx.globalAlpha = al * (watched ? 0.5 : 1); ctx.drawImage(img, tx, ty, tw, th); ctx.globalAlpha = al;
+      ctx.globalAlpha = watched ? 0.5 : 1; ctx.drawImage(img, tx, ty, tw, th); ctx.globalAlpha = 1;
       ctx.strokeStyle = 'rgba(235,242,255,.7)'; ctx.lineWidth = 1; ctx.strokeRect(tx + 0.5, ty + 0.5, tw - 1, th - 1);
       if (r > 34) {   // barcode strip
         const by = ty + th + r * 0.06, bh = Math.max(2, r * 0.07);
@@ -1914,16 +1967,6 @@ function drawVidNV(n, al) {
   // progress arc on the ring
   const pc = pct(n.id);
   if (pc > 0.02) nvRing(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + pc * 6.283, Math.max(2, r * 0.09), n.accent);
-  // rotating tick band + accent arc segments
-  if (r > 20 && !(eco && !hot)) {
-    const rt = r * 1.13, rot = T * 0.004 * (n.phase > 3 ? 1 : -1) + n.phase, N = r > 40 ? 72 : 40;
-    ctx.strokeStyle = `rgba(${rc},${hot ? 0.7 : 0.4})`; ctx.lineWidth = 1; ctx.beginPath();
-    for (let i = 0; i < N; i++) { if (i % 9 > 6) continue; const a = rot + i / N * 6.283, l = i % 9 === 0 ? r * 0.08 : r * 0.04; ctx.moveTo(cx + Math.cos(a) * rt, cy + Math.sin(a) * rt); ctx.lineTo(cx + Math.cos(a) * (rt + l), cy + Math.sin(a) * (rt + l)); }
-    ctx.stroke();
-    const ra = r * 1.27, rot2 = -T * 0.006 + n.phase * 2;
-    nvRing(cx, cy, ra, rot2, rot2 + 0.55, 1.6, `rgba(${rc},.95)`);
-    nvRing(cx, cy, ra, rot2 + Math.PI, rot2 + Math.PI + 0.3, 1, 'rgba(240,246,255,.55)');
-  }
   // badges
   if (r > 22) {
     ctx.font = '700 8px "JetBrains Mono", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -1935,26 +1978,44 @@ function drawVidNV(n, al) {
   if (watched && r > 16) { ctx.fillStyle = `rgb(${NVC.teal})`; ctx.font = '700 11px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('✓', cx - r * 0.72, cy + r * 0.74); }
   ctx.restore();
 }
-
-function drawHubNV(n, al) {
-  const p = n.p, r = hubR(n), T = state.prefs.fx ? net.tick : 0, hov = net.hover === n, mob = isMobile();
-  ctx.save(); ctx.globalAlpha = al;
+function drawVidNV(n, al) {
+  const g = n.g, hov = net.hover === n, ins = state.inspected === n.id, T = state.prefs.fx ? net.tick : 0;
+  const watched = state.watchedIds.includes(n.id), eco = ECO(), q = QL();
   const rc = n.rc || (n.rc = nvCol(n.channelId));
-  ctx.globalCompositeOperation = 'lighter'; const hs = r * (hov ? 3.8 : 3.1); ctx.drawImage(nvSprite(rc), p.x - hs / 2, p.y - hs / 2, hs, hs); ctx.globalCompositeOperation = 'source-over';
-  const g = ctx.createRadialGradient(p.x, p.y - r * 0.3, r * 0.1, p.x, p.y, r);
+  ctx.save(); ctx.globalAlpha = al;
+  if (g.dot) {   // far: a small glowing bubble
+    if (q > 0) { ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(nvSprite(rc), g.x - g.r * 3, g.y - g.r * 3, g.r * 6, g.r * 6); ctx.globalCompositeOperation = 'source-over'; }
+    nvRing(g.x, g.y, g.r, 0, 6.283, 1.2, `rgba(${rc},.9)`); ctx.restore(); return;
+  }
+  const { cx, cy, r } = g, hot = hov || ins || n.lens > 0.3;
+  const img = thumbs[n.id], ok = !!(img && img.complete && img.naturalWidth), glow = hot || (q > 0 && !eco);
+  const rb = r <= 20 ? 20 : r <= 30 ? 30 : r <= 46 ? 46 : 80, S = Math.ceil(rb * 3.5 + 10);
+  const key = [n.id, rb, hot ? 1 : 0, watched ? 1 : 0, Math.round(pct(n.id) * 40), ok ? 1 : 0, glow ? 1 : 0, isNew(n.video) ? 1 : 0, state.savedIds.includes(n.id) ? 1 : 0, rc, net.dpr].join('|');
+  const st = nvStamp(key, S, () => nvVidBody(n, S / 2, S / 2, rb, hot, watched, ok, img, glow, rc));
+  const D = S * r / rb; ctx.drawImage(st, cx - D / 2, cy - D / 2, D, D);
+  // rotating tick band + accent arc segments (live)
+  if (r > 20 && (q === 2 || (q === 1 && hot) || (q === 0 && hot && ins)) && !(eco && !hot)) {
+    const rt = r * 1.13, rot = T * 0.004 * (n.phase > 3 ? 1 : -1) + n.phase, N = q === 2 && r > 40 ? 72 : 36;
+    ctx.strokeStyle = `rgba(${rc},${hot ? 0.7 : 0.4})`; ctx.lineWidth = 1; ctx.beginPath();
+    for (let i = 0; i < N; i++) { if (i % 9 > 6) continue; const a = rot + i / N * 6.283, l = i % 9 === 0 ? r * 0.08 : r * 0.04; ctx.moveTo(cx + Math.cos(a) * rt, cy + Math.sin(a) * rt); ctx.lineTo(cx + Math.cos(a) * (rt + l), cy + Math.sin(a) * (rt + l)); }
+    ctx.stroke();
+    const ra = r * 1.27, rot2 = -T * 0.006 + n.phase * 2;
+    nvRing(cx, cy, ra, rot2, rot2 + 0.55, 1.6, `rgba(${rc},.95)`);
+    nvRing(cx, cy, ra, rot2 + Math.PI, rot2 + Math.PI + 0.3, 1, 'rgba(240,246,255,.55)');
+  }
+  ctx.restore();
+}
+
+function nvHubBody(n, x, y, r, hov, mob, rc, ticks) {
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter'; const hs = r * (hov ? 3.8 : 3.1); ctx.drawImage(nvSprite(rc), x - hs / 2, y - hs / 2, hs, hs); ctx.globalCompositeOperation = 'source-over';
+  const g = ctx.createRadialGradient(x, y - r * 0.3, r * 0.1, x, y, r);
   g.addColorStop(0, 'rgba(18,22,36,.97)'); g.addColorStop(1, 'rgba(2,3,8,.98)');
-  ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 6.283); ctx.fillStyle = g; ctx.fill();
-  nvRing(p.x, p.y, r, 0, 6.283, 3, hov ? '#fff' : `rgba(${rc},.95)`);
-  nvRing(p.x, p.y, r, 0, 6.283, 1, 'rgba(225,240,255,.95)');
-  ctx.setLineDash([2, 3]); nvRing(p.x, p.y, r * 0.87, 0, 6.283, 0.8, `rgba(${rc},.45)`); ctx.setLineDash([]);
-  const rt = r * 1.15, rot = T * 0.0018 + n.phase;
-  ctx.strokeStyle = `rgba(${rc},.5)`; ctx.lineWidth = 1; ctx.beginPath();
-  for (let i = 0; i < 60; i++) { const a = rot + i / 60 * 6.283, l = i % 5 === 0 ? r * 0.1 : r * 0.045; ctx.moveTo(p.x + Math.cos(a) * rt, p.y + Math.sin(a) * rt); ctx.lineTo(p.x + Math.cos(a) * (rt + l), p.y + Math.sin(a) * (rt + l)); }
-  ctx.stroke();
-  const ra = r * 1.33, a0 = -Math.PI / 2 + Math.sin(T * 0.01 + n.phase) * 0.3;
-  nvRing(p.x, p.y, ra, a0 - 0.45, a0 + 0.45, 2.4, hexA(n.accent, 0.95));
-  nvRing(p.x, p.y, ra, a0 + Math.PI - 0.2, a0 + Math.PI + 0.2, 1.2, 'rgba(225,240,255,.6)');
-  // centred title like the exhibition's series nodes ("INNOCENCE")
+  ctx.beginPath(); ctx.arc(x, y, r, 0, 6.283); ctx.fillStyle = g; ctx.fill();
+  nvRing(x, y, r, 0, 6.283, 3, hov ? '#fff' : `rgba(${rc},.95)`);
+  nvRing(x, y, r, 0, 6.283, 1, 'rgba(225,240,255,.95)');
+  ctx.setLineDash([2, 3]); nvRing(x, y, r * 0.87, 0, 6.283, 0.8, `rgba(${rc},.45)`); ctx.setLineDash([]);
+  if (ticks) nvHubTicks(n, x, y, r, n.phase, -Math.PI / 2, rc);
   let fs = clamp(r * 0.3, 9, 15), nm = n.ch.name, lines = [nm];
   ctx.font = `700 ${fs}px "Noto Sans JP", sans-serif`;
   while (fs > 9 && ctx.measureText(nm).width > r * 1.62) { fs -= 0.5; ctx.font = `700 ${fs}px "Noto Sans JP", sans-serif`; }
@@ -1963,13 +2024,33 @@ function drawHubNV(n, al) {
     lines = [nvFit(ch.slice(0, half).join(''), r * 1.5, ctx.font, '_nvH1', n), nvFit(ch.slice(half).join(''), r * 1.5, ctx.font, '_nvH2', n)];
   }
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#f2f8ff';
-  const y0 = p.y - (mob ? 0 : fs * 0.35) - (lines.length - 1) * fs * 0.55;
-  lines.forEach((l, i) => ctx.fillText(l, p.x, y0 + i * fs * 1.1));
+  const y0 = y - (mob ? 0 : fs * 0.35) - (lines.length - 1) * fs * 0.55;
+  lines.forEach((l, i) => ctx.fillText(l, x, y0 + i * fs * 1.1));
   if (lines.length > 1) fs *= 1.5;
   if (!mob || r > 30) {
     ctx.font = `500 ${clamp(r * 0.16, 7, 9)}px "JetBrains Mono", monospace`; ctx.fillStyle = `rgba(${rc},1)`;
-    ctx.fillText(`${String(n.count).padStart(2, '0')} NODES`, p.x, p.y + fs * 0.75);
+    ctx.fillText(`${String(n.count).padStart(2, '0')} NODES`, x, y + fs * 0.75);
   }
+  ctx.restore();
+}
+function nvHubTicks(n, x, y, r, rot, a0, rc) {
+  const rt = r * 1.15;
+  ctx.strokeStyle = `rgba(${rc},.5)`; ctx.lineWidth = 1; ctx.beginPath();
+  for (let i = 0; i < 60; i++) { const a = rot + i / 60 * 6.283, l = i % 5 === 0 ? r * 0.1 : r * 0.045; ctx.moveTo(x + Math.cos(a) * rt, y + Math.sin(a) * rt); ctx.lineTo(x + Math.cos(a) * (rt + l), y + Math.sin(a) * (rt + l)); }
+  ctx.stroke();
+  const ra = r * 1.33;
+  nvRing(x, y, ra, a0 - 0.45, a0 + 0.45, 2.4, hexA(n.accent, 0.95));
+  nvRing(x, y, ra, a0 + Math.PI - 0.2, a0 + Math.PI + 0.2, 1.2, 'rgba(225,240,255,.6)');
+}
+function drawHubNV(n, al) {
+  const p = n.p, r = hubR(n), T = state.prefs.fx ? net.tick : 0, hov = net.hover === n, mob = isMobile(), q = QL();
+  const rc = n.rc || (n.rc = nvCol(n.channelId));
+  const rb = r <= 24 ? 24 : r <= 36 ? 36 : 64, S = Math.ceil(rb * 4 + 12), live = q > 0;
+  const key = ['H', n.id, rb, hov ? 1 : 0, mob ? 1 : 0, n.count, rc, live ? 0 : 1, net.dpr].join('|');
+  const st = nvStamp(key, S, () => nvHubBody(n, S / 2, S / 2, rb, hov, mob, rc, !live));
+  ctx.save(); ctx.globalAlpha = al;
+  const D = S * r / rb; ctx.drawImage(st, p.x - D / 2, p.y - D / 2, D, D);
+  if (live) nvHubTicks(n, p.x, p.y, r, T * 0.0018 + n.phase, -Math.PI / 2 + Math.sin(T * 0.01 + n.phase) * 0.3, rc);
   n.lbl = { x: p.x - r * 0.9, y: p.y - r * 0.9, w: r * 1.8, h: r * 1.8 };
   ctx.restore();
 }
@@ -3176,6 +3257,7 @@ function applyPrefs() {
   $('ecoBtn').textContent = 'ECO: ' + state.prefs.eco.toUpperCase() + (state.prefs.eco === 'auto' ? (ECO() ? '·ON' : '·OFF') : '');
   $('ecoBtn').classList.toggle('on', ECO());
   if ($('sEco')) $('sEco').value = state.prefs.eco;
+  if ($('sQual')) $('sQual').value = state.prefs.quality || 'auto';
   document.body.classList.toggle('eco', ECO());
   $('pAuto').querySelector('s').textContent = state.prefs.autoNext ? 'ON' : 'OFF'; $('pAuto').classList.toggle('ok', state.prefs.autoNext);
 }
@@ -3211,9 +3293,10 @@ function initEvents() {
   $('pulseBtn').onclick = pulseWave;
   $('rotBtn').onclick = () => { state.prefs.autoRot = !state.prefs.autoRot; savePrefs(); applyPrefs(); };
   $('fxBtn').onclick = () => { state.prefs.fx = !state.prefs.fx; savePrefs(); applyPrefs(); };
-  const setEco = v => { state.prefs.eco = v; savePrefs(); applyPrefs(); resize(); syncPowerState(); toast(`省電力モード：${v.toUpperCase()}${v === 'auto' ? (ECO() ? '（ON）' : '（OFF）') : ''}`); };
+  const setEco = v => { state.prefs.eco = v; savePrefs(); applyPrefs(); applyQuality(); syncPowerState(); toast(`省電力モード：${v.toUpperCase()}${v === 'auto' ? (ECO() ? '（ON）' : '（OFF）') : ''}`); };
   $('ecoBtn').onclick = () => { const o = ['auto', 'on', 'off']; setEco(o[(o.indexOf(state.prefs.eco) + 1) % 3]); };
   $('sEco').onchange = e => setEco(e.target.value);
+  $('sQual').onchange = e => setQuality(e.target.value);
   const cycleLabel = () => { const o = ['auto', 'all', 'off']; state.prefs.labels = o[(o.indexOf(state.prefs.labels) + 1) % 3]; savePrefs(); applyPrefs(); };
   $('labelBtn').onclick = cycleLabel;
   $('shapeBtn').onclick = () => setShape(SHAPES[(SHAPES.indexOf(state.prefs.shape || 'sphere') + 1) % SHAPES.length]);
@@ -3371,7 +3454,7 @@ function initEvents() {
 // =============================================================================
 function boot() {
   const lines = [
-    '<span class="c">MY NERVE TUBE NET</span> // GHOST ARCHIVE TUNER  v8.2',
+    '<span class="c">MY NERVE TUBE NET</span> // GHOST ARCHIVE TUNER  v8.3',
     '> MAGI SYSTEM: MELCHIOR·1 / BALTHASAR·2 / CASPER·3 ... ONLINE',
     '> initializing cyberbrain interface ........ OK',
     `> mounting ${state.channels.length} hubs / ${state.videos.length} memory nodes ... OK`,
@@ -3387,7 +3470,7 @@ function boot() {
 window.addEventListener('DOMContentLoaded', () => {
   applyTheme(state.prefs.theme || 'nerve', true);
   document.body.classList.toggle('q-closed', !searchOpen()); applyPanels();
-  syncGenres(); buildDust(); initEvents(); applyPrefs(); renderCfg(); renderAll(); updateQBtn();
+  syncGenres(); buildDust(); initEvents(); applyPrefs(); applyQuality(); renderCfg(); renderAll(); updateQBtn();
   syslog('NERVE NET online', 'ok');
   if (IS_FILE) { syslog('file:// — 埋め込み再生にはWeb配信が必要', 'wr'); $('linkChip').classList.add('warn'); }
   boot();
