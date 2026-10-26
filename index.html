@@ -362,8 +362,57 @@ body.sleeping #fxSweep{display:none}
 .pf-box{position:relative;width:100%;aspect-ratio:16/9;max-height:70dvh;background:#000;margin:0 auto}
 .pf-box.short{aspect-ratio:9/16;width:auto;height:70dvh;max-width:100%}
 .pf-box iframe,#pMount{width:100%;height:100%;border:0;display:block}
-.pf-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:8px 12px;border-top:1px solid var(--c1-line);font-family:var(--mono);font-size:10px;color:var(--mute)}
-.pf-bar .grp{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+/* ---- player control deck ---- */
+.pf-bar{display:flex;flex-direction:column;gap:10px;padding:10px 14px 12px;border-top:1px solid var(--c1-line);font-family:var(--mono);font-size:10px;color:var(--mute);--pr:var(--accent)}
+.pd-track{display:flex;align-items:center;gap:10px}
+.pd-t{font-size:11px;color:var(--hi);min-width:46px;text-align:center;letter-spacing:.06em}
+.pd-rail{position:relative;flex:1;height:22px;cursor:pointer;touch-action:none}
+.pd-rail::before{content:"";position:absolute;left:0;right:0;top:10px;height:2px;background:rgba(var(--c1-rgb),.18)}
+.pd-ticks{position:absolute;inset:4px 0;background:repeating-linear-gradient(90deg,rgba(var(--c1-rgb),.35) 0 1px,transparent 1px 2%);-webkit-mask:linear-gradient(transparent 30%,#000 30% 70%,transparent 70%);mask:linear-gradient(transparent 30%,#000 30% 70%,transparent 70%);opacity:.55}
+.pd-fill{position:absolute;left:0;top:9px;height:4px;width:0;background:var(--pr);box-shadow:0 0 10px var(--pr)}
+[data-theme=nerve] .pf-tag{background:transparent;border:1px solid #eef2fa;color:#eef2fa;border-radius:12px;padding:4px 10px}
+[data-theme=nerve] .pf-head{background:linear-gradient(90deg,rgba(255,255,255,.04),transparent)}
+[data-theme=nerve] #pTitle{font-weight:600}
+[data-theme=nerve] .pf-head .btn{border-radius:18px;border-color:rgba(230,236,248,.35)}
+[data-theme=nerve] .pf-bar{background:linear-gradient(180deg,rgba(255,255,255,.03),transparent 60%)}
+@keyframes nvspin{to{transform:rotate(360deg)}}
+.pd-head{position:absolute;top:3px;left:0;width:16px;height:16px;margin-left:-8px;border-radius:50%;border:2px solid var(--pr);background:#000;box-shadow:0 0 0 2px #000,0 0 0 3px rgba(255,255,255,.7),0 0 12px var(--pr)}
+.pd-main{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:14px}
+.pd-info{display:flex;align-items:center;gap:10px;min-width:0}
+.pd-ring{position:relative;flex:none;width:44px;height:44px;border-radius:50%;border:3px solid var(--pr);box-shadow:0 0 12px var(--pr),inset 0 0 0 3px #000,inset 0 0 0 4px rgba(255,255,255,.6);display:grid;place-items:center;font-size:8px;letter-spacing:.12em;color:var(--hi)}
+.pd-ring i{position:absolute;inset:-7px;border-radius:50%;background:repeating-conic-gradient(rgba(var(--c1-rgb),.55) 0 1.5deg,transparent 1.5deg 9deg);-webkit-mask:radial-gradient(circle,transparent 66%,#000 67%);mask:radial-gradient(circle,transparent 66%,#000 67%);animation:nvspin 30s linear infinite}
+.pd-read{min-width:0;display:flex;flex-direction:column;gap:3px}
+.pd-k{font-size:9px;letter-spacing:.16em;color:var(--c1)}
+.pd-read #pMeta{color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pd-read #pResume{color:var(--c2)}
+.pd-trans{display:flex;align-items:center;gap:10px}
+.pd-c{position:relative;width:46px;height:46px;border-radius:50%;border:1.5px solid rgba(var(--c1-rgb),.55);background:radial-gradient(circle,rgba(var(--pn-rgb),.95),#000);color:var(--hi);display:grid;place-items:center;transition:.18s;font-family:var(--mono);font-size:11px;font-weight:700}
+.pd-c svg{width:18px;height:18px;fill:currentColor}
+.pd-c.s{width:38px;height:38px;font-size:10px;color:var(--c1)}
+.pd-c:hover:not(:disabled){border-color:var(--hi);box-shadow:0 0 14px rgba(var(--c1-rgb),.6)}
+.pd-c:disabled{opacity:.3;cursor:default}
+.pd-c.big{width:66px;height:66px;border:3px solid var(--pr);box-shadow:0 0 18px var(--pr),inset 0 0 0 4px #000,inset 0 0 0 5px rgba(255,255,255,.7)}
+.pd-c.big svg{width:26px;height:26px}
+.pd-spin{position:absolute;inset:-9px;border-radius:50%;background:repeating-conic-gradient(rgba(var(--c1-rgb),.6) 0 1.2deg,transparent 1.2deg 7.5deg);-webkit-mask:radial-gradient(circle,transparent 69%,#000 70%);mask:radial-gradient(circle,transparent 69%,#000 70%);animation:nvspin 12s linear infinite;animation-play-state:paused;pointer-events:none}
+#pDeck.playing .pd-spin{animation-play-state:running}
+.pd-c .i-pause{display:none}#pDeck.playing .pd-c .i-pause{display:block}#pDeck.playing .pd-c .i-play{display:none}
+.pd-side{display:flex;align-items:center;justify-content:flex-end;gap:12px;min-width:0}
+.pd-dials{display:flex;gap:8px}
+.pd-d{width:48px;height:48px;border-radius:50%;border:1.5px dashed rgba(var(--c1-rgb),.45);background:radial-gradient(circle,rgba(var(--pn-rgb),.95),#000);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;color:var(--mute);transition:.18s;font-family:var(--mono)}
+.pd-d b{font-size:8px;letter-spacing:.1em;font-weight:700}
+.pd-d s{text-decoration:none;font-size:11px;color:var(--hi)}
+.pd-d:hover{border-color:var(--hi)}
+.pd-d.ok{border:2px solid var(--c2);color:var(--c2);box-shadow:0 0 12px rgba(var(--c2-rgb),.45)}
+.pd-next{display:flex;align-items:center;gap:8px;min-width:0;max-width:220px;padding:4px 10px 4px 4px;border:1px solid rgba(var(--c1-rgb),.35);border-radius:30px;background:rgba(0,0,0,.6);color:var(--txt);text-align:left;transition:.18s}
+.pd-next:hover:not(:disabled){border-color:var(--hi)}
+.pd-next:disabled{opacity:.35}
+.pd-nt{flex:none;width:42px;height:42px;border-radius:50%;overflow:hidden;border:2px solid var(--c1);box-shadow:0 0 10px rgba(var(--c1-rgb),.5)}
+.pd-nt img{width:100%;height:100%;object-fit:cover;transform:scale(1.35)}
+.pd-nx{min-width:0;display:flex;flex-direction:column}
+.pd-nx em{font-style:normal;font-size:8px;letter-spacing:.16em;color:var(--c1)}
+.pd-nx b{font-family:var(--jp);font-size:11px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:900px){.pd-main{grid-template-columns:1fr;justify-items:center;gap:10px}.pd-info{width:100%}.pd-side{width:100%;justify-content:space-between}}
+@media (max-width:600px){.pd-c{width:44px;height:44px}.pd-c.big{width:62px;height:62px}.pd-d{width:44px;height:44px}.pd-next{max-width:46%}.pd-nx b{font-size:10px}.pd-info{display:none}}
 #pResume{color:var(--c2)}
 .ovl{position:absolute;inset:0;z-index:3;display:none;place-items:center;padding:20px;background:rgba(10,2,4,.94);text-align:center}
 .ovl.show{display:grid}
@@ -493,8 +542,6 @@ textarea.inp{resize:vertical;min-height:190px;line-height:1.6;white-space:pre;ov
   .pf-box{max-height:none;width:100%}
   .pf-box.short{height:auto;width:min(100%, calc((100dvh - 230px) * 9 / 16));aspect-ratio:9/16}
   .pf-bar{margin-top:auto;padding:10px calc(10px + var(--sar)) calc(10px + var(--sab)) calc(10px + var(--sal))}
-  .pf-bar .grp:first-child{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;width:100%}
-  .pf-bar .grp:first-child .btn{min-height:44px;padding:6px 4px;font-size:10px}
   .pf-bar .grp:last-child{width:100%;justify-content:space-between}
   #playerModal .pf{display:flex;flex-direction:column;background:#000}
   #playerModal .pf-box{flex:none;margin:auto 0}
@@ -752,15 +799,34 @@ body.playing #deco{visibility:hidden}
         </div>
       </div>
     </div>
-    <div class="pf-bar">
-      <div class="grp">
-        <button class="btn" id="pPrev" title="前の動画 (P)">◀ PREV</button>
-        <button class="btn" id="pNext" title="次の動画 (N)">NEXT ▶</button>
-        <button class="btn ok" id="pAuto" title="終了後に次の動画を自動再生">AUTO-NEXT: ON</button>
-        <button class="btn" id="pCC" title="字幕の表示切替">字幕: OFF</button>
-        <button class="btn" id="pShare">⇪ 共有</button>
+    <div class="pf-bar" id="pDeck">
+      <div class="pd-track">
+        <span class="pd-t" id="pTime">00:00</span>
+        <div class="pd-rail" id="pRail" title="クリック／ドラッグでシーク"><i class="pd-ticks"></i><i class="pd-fill" id="pFill"></i><i class="pd-head" id="pHead"></i></div>
+        <span class="pd-t" id="pDur">--:--</span>
       </div>
-      <div class="grp"><span id="pResume"></span><span id="pMeta">-</span></div>
+      <div class="pd-main">
+        <div class="pd-info">
+          <div class="pd-ring"><i></i><span>LINK</span></div>
+          <div class="pd-read"><div class="pd-k">WIRED LINK // NOW ACCESSING</div><div id="pMeta">-</div><div id="pResume"></div></div>
+        </div>
+        <div class="pd-trans">
+          <button class="pd-c s" id="pBack" title="10秒戻る">−10</button>
+          <button class="pd-c" id="pPrev" title="前の動画 (P)"><svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
+          <button class="pd-c big" id="pPlay" title="再生／一時停止"><i class="pd-spin"></i><svg class="i-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><svg class="i-pause" viewBox="0 0 24 24"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg></button>
+          <button class="pd-c" id="pNext" title="次の動画 (N)"><svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
+          <button class="pd-c s" id="pFwd" title="10秒進む">+10</button>
+        </div>
+        <div class="pd-side">
+          <div class="pd-dials">
+            <button class="pd-d" id="pAuto" title="終了後に次の動画を自動再生"><b>AUTO</b><s>ON</s></button>
+            <button class="pd-d" id="pCC" title="字幕の表示切替"><b>字幕</b><s>OFF</s></button>
+            <button class="pd-d" id="pTheater" title="全画面 (F)"><b>FULL</b><s>⤢</s></button>
+            <button class="pd-d" id="pShare" title="共有"><b>SHARE</b><s>⇪</s></button>
+          </div>
+          <button class="pd-next" id="pNextBox" title="次の動画へ"><span class="pd-nt"><img id="pNextImg" alt="" /></span><span class="pd-nx"><em>NEXT NODE</em><b id="pNextTitle">-</b></span></button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -1545,7 +1611,7 @@ function setCaptionsLive(p) {          // user toggled the 字幕 button while a
     setTimeout(() => { if (captionTrack(p)) { ccRearmed = false; enforceCaptions(p, state.playing); } }, 900);
   }
 }
-function updateCCBtn() { const b = $('pCC'); if (!b) return; b.textContent = '字幕: ' + ({ off: 'OFF', on: 'ON', yt: 'AUTO' }[state.prefs.cc]); b.classList.toggle('ok', state.prefs.cc === 'on'); }
+function updateCCBtn() { const b = $('pCC'); if (!b) return; b.querySelector('s').textContent = { off: 'OFF', on: 'ON', yt: 'AUTO' }[state.prefs.cc]; b.classList.toggle('ok', state.prefs.cc === 'on'); }
 
 // ===== power-aware render loop =====
 const ECO = () => state.prefs.eco === 'on' || (state.prefs.eco === 'auto' && IS_TOUCH);
@@ -2674,6 +2740,10 @@ async function openPlayerCore(id, opts = {}) {
   $('pBox').classList.toggle('short', !!v.isShort);
   $('pErr').classList.remove('show'); $('pResume').textContent = '';
   const qi = state.queue.indexOf(id); $('pPrev').disabled = qi <= 0; $('pNext').disabled = qi < 0 || qi >= state.queue.length - 1;
+  { const nx = vidById(state.queue[qi + 1]); $('pNextBox').disabled = !nx; $('pNextTitle').textContent = nx ? cleanTitle(nx.title) : '— END OF QUEUE —'; $('pNextImg').src = nx ? `https://i.ytimg.com/vi/${nx.id}/mqdefault.jpg` : ''; $('pNextImg').style.visibility = nx ? '' : 'hidden'; }
+  $('pDeck').style.setProperty('--pr', NV() ? `rgb(${nvCol(v.channelId)})` : (c.accent || 'var(--c1)'));
+  $('pTime').textContent = '00:00'; $('pDur').textContent = v.duration || '--:--'; $('pFill').style.width = '0'; $('pHead').style.left = '0';
+  clearInterval(deckTimer); deckTimer = setInterval(deckTick, 250);
   updateBtns(); $('playerModal').classList.add('show');
   if (!IN_FRAME && /^https?:$/.test(location.protocol)) history.replaceState(null, '', '#v=' + id);
   syslog(`WIRED LINK >> ${v.id}`, 'ok');
@@ -2739,10 +2809,25 @@ function surface(v, to) {
     })(t0);
   });
 }
+let deckTimer = null, deckSeek = false;
+function deckTick() {
+  if (!yt || !yt.getCurrentTime) return;
+  let t = 0, d = 0, st = -1; try { t = yt.getCurrentTime() || 0; d = yt.getDuration() || 0; st = yt.getPlayerState(); } catch (e) { return; }
+  $('pDeck').classList.toggle('playing', st === 1 || st === 3);
+  if (deckSeek || !d) return;
+  const r = clamp(t / d, 0, 1); $('pFill').style.width = (r * 100) + '%'; $('pHead').style.left = (r * 100) + '%';
+  $('pTime').textContent = secToDur(t); $('pDur').textContent = secToDur(d);
+}
+function deckSeekTo(e, commit) {
+  if (!yt || !yt.getDuration) return; const d = yt.getDuration() || 0; if (!d) return;
+  const rc = $('pRail').getBoundingClientRect(), r = clamp((e.clientX - rc.left) / rc.width, 0, 1);
+  $('pFill').style.width = (r * 100) + '%'; $('pHead').style.left = (r * 100) + '%'; $('pTime').textContent = secToDur(r * d);
+  if (commit) { try { yt.seekTo(r * d, true); } catch (er) {} }
+}
 function closePlayer() {
   if (!$('playerModal').classList.contains('show')) return;
   const wasId = state.playing;
-  saveProgress(); resetMount(); state.playing = null; exitTheater();
+  saveProgress(); resetMount(); state.playing = null; exitTheater(); clearInterval(deckTimer); $('pDeck').classList.remove('playing');
   $('playerModal').classList.remove('show');
   if (!IN_FRAME && location.hash.startsWith('#v=')) history.replaceState(null, '', location.pathname + location.search);
   if (state.inspected) inspect(vidById(state.inspected), false); else setAccent();
@@ -3092,7 +3177,7 @@ function applyPrefs() {
   $('ecoBtn').classList.toggle('on', ECO());
   if ($('sEco')) $('sEco').value = state.prefs.eco;
   document.body.classList.toggle('eco', ECO());
-  $('pAuto').textContent = 'AUTO-NEXT: ' + (state.prefs.autoNext ? 'ON' : 'OFF'); $('pAuto').classList.toggle('ok', state.prefs.autoNext);
+  $('pAuto').querySelector('s').textContent = state.prefs.autoNext ? 'ON' : 'OFF'; $('pAuto').classList.toggle('ok', state.prefs.autoNext);
 }
 
 // =============================================================================
@@ -3179,6 +3264,15 @@ function initEvents() {
   $('sfxBtn').onclick = () => { state.prefs.sfx = !state.prefs.sfx; savePrefs(); applyPrefs(); if (state.prefs.sfx) { sfxInit(); SFX.ui(); } else SFX.motion(0); };
   $('pAuto').onclick = () => { state.prefs.autoNext = !state.prefs.autoNext; savePrefs(); applyPrefs(); };
   $('pShare').onclick = () => state.playing && share(state.playing);
+  $('pPlay').onclick = () => { if (!yt || !yt.getPlayerState) return; try { const s = yt.getPlayerState(); s === 1 || s === 3 ? yt.pauseVideo() : yt.playVideo(); } catch (e) {} SFX.ui && SFX.ui(); setTimeout(deckTick, 120); };
+  $('pBack').onclick = () => { try { yt.seekTo(Math.max(0, yt.getCurrentTime() - 10), true); } catch (e) {} };
+  $('pFwd').onclick = () => { try { yt.seekTo(yt.getCurrentTime() + 10, true); } catch (e) {} };
+  $('pTheater').onclick = () => toggleTheater();
+  $('pNextBox').onclick = () => step(1);
+  $('pRail').addEventListener('pointerdown', e => { deckSeek = true; try { $('pRail').setPointerCapture(e.pointerId); } catch (er) {} deckSeekTo(e, false); });
+  $('pRail').addEventListener('pointermove', e => { if (deckSeek) deckSeekTo(e, false); });
+  $('pRail').addEventListener('pointerup', e => { if (!deckSeek) return; deckSeekTo(e, true); deckSeek = false; });
+  $('pRail').addEventListener('pointercancel', () => { deckSeek = false; });
   $('pWarnTry').onclick = () => state.playing && openPlayer(state.playing, { keepQueue: true, force: true });
 
   $('cfgBtn').onclick = () => { renderCfg(); $('cfgModal').classList.add('show'); };
@@ -3277,7 +3371,7 @@ function initEvents() {
 // =============================================================================
 function boot() {
   const lines = [
-    '<span class="c">MY NERVE TUBE NET</span> // GHOST ARCHIVE TUNER  v8.1',
+    '<span class="c">MY NERVE TUBE NET</span> // GHOST ARCHIVE TUNER  v8.2',
     '> MAGI SYSTEM: MELCHIOR·1 / BALTHASAR·2 / CASPER·3 ... ONLINE',
     '> initializing cyberbrain interface ........ OK',
     `> mounting ${state.channels.length} hubs / ${state.videos.length} memory nodes ... OK`,
