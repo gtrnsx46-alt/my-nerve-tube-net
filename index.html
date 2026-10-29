@@ -844,7 +844,7 @@ body.playing #deco{visibility:hidden}
     <div class="body">
       <div class="blk">
         <div style="display:flex;justify-content:space-between;align-items:center"><span class="lbl"><b>◢</b> YouTube Data API v3</span><span class="chip" id="apiState">PRESET+RSS</span></div>
-        <p>APIキーがあると、最新/過去動画・再生数・尺を直接取得し、62秒以下をShortsに自動分類します。起動時に前回同期から3時間以上経っていれば自動で同期します。キーはこの端末のブラウザにのみ保存されます。</p>
+        <p>APIキーがあると、最新/過去動画・再生数・尺を直接取得し、縦動画をShortsとして自動で振り分けます（APIキーがなくても縦横を判定します）。起動時に前回同期から3時間以上経っていれば自動で同期します。キーはこの端末のブラウザにのみ保存されます。</p>
         <div class="row2"><input id="apiKey" class="inp" type="password" placeholder="AIzaSy..." autocomplete="off" /><button class="btn pri" id="apiSave">保存して同期</button></div>
       </div>
       <div class="blk">
@@ -953,7 +953,7 @@ body.playing #deco{visibility:hidden}
       </div>
       <div>
         <input id="bulkKey" class="inp" type="password" autocomplete="off" placeholder="（任意）YouTube Data API キー  AIzaSy..." />
-        <p style="margin:6px 0 0">APIキーなし：各チャンネルの最新動画をRSSで取得（再生数・尺は取得不可）。APIキーあり：再生数・尺・Shorts判定まで取得。URLや@ハンドルだけの行はAPIキーが必要です。</p>
+        <p style="margin:6px 0 0">APIキーなし：各チャンネルの最新動画をRSSで取得（再生数・尺は取得不可）。APIキーあり：再生数・尺まで取得。縦動画＝Shorts／横動画＝動画の判定はどちらでも自動で行います。URLや@ハンドルだけの行はAPIキーが必要です。</p>
       </div>
       <div class="row2"><button class="btn pri" id="bulkGo">登録して同期</button><button class="btn" id="bulkCopy">現在の登録をテキストでコピー</button></div>
       <div id="bulkMsg" class="lbl"></div>
@@ -2007,6 +2007,41 @@ function drawCalloutDT(n) {
   ctx.restore();
 }
 
+
+// ===== orientation check: 縦動画 = Shorts / 横動画 = 動画 =====
+// YouTube publishes a vertical "oardefault" thumbnail (1080x1920) only for vertical Shorts; normal videos
+// return a 120x90 placeholder. Loading it as a plain <img> needs no API key and no CORS.
+const orient = store.get('aether_orient_v1', {});           // id -> 1 vertical, 0 horizontal
+const ori = { q: [], run: 0, dirty: false, t: 0, done: 0 };
+function oriKnown(id) { return orient[id] !== undefined; }
+function oriShort(id, fallback) { return oriKnown(id) ? orient[id] === 1 : fallback; }
+function oriNeeds(v) { return !oriKnown(v.id) && !(durMin(v.duration) > 3.05); }   // Shorts are at most 3 minutes
+function queueOrient(list) { const s = new Set(ori.q); list.forEach(v => { if (oriNeeds(v) && !s.has(v.id)) { ori.q.push(v.id); s.add(v.id); } }); oriPump(); }
+function oriPump() {
+  while (ori.run < 4 && ori.q.length) {
+    const id = ori.q.shift(); ori.run++;
+    const im = new Image(); let fin = false;
+    const done = vert => {
+      if (fin) return; fin = true; ori.run--; clearTimeout(tm);
+      if (vert !== null) {
+        orient[id] = vert ? 1 : 0; ori.done++;
+        const v = vidById(id); if (v && !!v.isShort !== vert) { v.isShort = vert; ori.dirty = true; }
+      }
+      oriPump(); clearTimeout(ori.t); ori.t = setTimeout(oriFlush, ori.q.length || ori.run ? 2500 : 300);
+    };
+    const tm = setTimeout(() => done(null), 15000);
+    im.onload = () => done(im.naturalHeight > im.naturalWidth); im.onerror = () => done(null);
+    im.src = `https://i.ytimg.com/vi/${id}/oardefault.jpg`;
+  }
+}
+function oriFlush() {
+  store.set('aether_orient_v1', orient);
+  if (!ori.dirty) return; ori.dirty = false;
+  store.set('aether_videos_v1', state.videos);
+  if (state.playing || diving) { clearTimeout(ori.t); ori.t = setTimeout(oriFlush, 3000); ori.dirty = true; return; }
+  renderTabs(); renderRail(); renderStage();
+  if (!ori.q.length && !ori.run) syslog(`ORIENT >> 縦横判定 ${ori.done} 件完了`, 'ok');
+}
 function hubR(n) { return n.r * n.p.k * net.scaleR * net.zoom * n.p.mag * (NV() ? 1.55 : 1); }
 function nvBob(n, T) { if (!state.prefs.fx || QL() === 0) return [0, 0, 0]; const t = T * 0.011 + n.phase * 3.1; return [Math.sin(t) * 0.014, Math.sin(t * 0.83 + 1.3) * 0.016, Math.cos(t * 0.7) * 0.014]; }
 
@@ -2511,7 +2546,7 @@ function renderRail() {
 }
 function renderTabs() {
   const sm = state.prefs.shorts || 'exclude';
-  const seg = `<span class="sseg" role="group" aria-label="Shorts表示"><button data-sm="exclude" class="${sm === 'exclude' ? 'on' : ''}" title="通常動画のみ">動画</button><button data-sm="include" class="${sm === 'include' ? 'on' : ''}" title="Shortsも含める">＋Shorts</button><button data-sm="only" class="${sm === 'only' ? 'on' : ''}" title="Shortsのみ">Shorts</button></span>`;
+  const seg = `<span class="sseg" role="group" aria-label="Shorts表示"><button data-sm="exclude" class="${sm === 'exclude' ? 'on' : ''}" title="横動画のみ（縦動画のShortsを除く）">動画</button><button data-sm="include" class="${sm === 'include' ? 'on' : ''}" title="Shortsも含める">＋Shorts</button><button data-sm="only" class="${sm === 'only' ? 'on' : ''}" title="縦動画（Shorts）のみ">Shorts</button></span>`;
   const lbl = t => t.key === 'video' ? `最新<small style="opacity:.7;margin-left:3px">${state.prefs.latestDays > 0 ? state.prefs.latestDays + '日' : '全期間'}</small>` : t.label;
   $('tabs').innerHTML = seg + TABS.map(t => { const n = state.videos.filter(v => passTab(v, t.key) && passChannel(v)).length; return `<button class="tab ${state.tab === t.key ? 'on' : ''}" data-t="${t.key}" title="${t.key === 'video' ? '最新の基準は ⚙設定 → LATEST で変更できます' : ''}"><span class="k">${t.k}</span>${lbl(t)}${t.key === 'deep' ? '' : `<span class="ct">${n}</span>`}</button>`; }).join('');
   $('tabs').querySelectorAll('.tab').forEach(b => b.onclick = () => setTab(b.dataset.t));
@@ -3109,7 +3144,7 @@ async function sync(quiet) {
         if (!r.ok) return;
         for (const it of ((await r.json()).items || [])) {
           const vid = (it.guid || '').split(':').pop(); if (!vid) continue;
-          const title = it.title || '', isShort = /#shorts/i.test(title) || (it.link || '').includes('/shorts/');
+          const title = it.title || '', isShort = oriShort(vid, /#shorts/i.test(title) || (it.link || '').includes('/shorts/'));
           const pub = it.pubDate ? new Date(it.pubDate.replace(' ', 'T') + 'Z').toISOString() : '';
           const ex = state.videos.find(v => v.id === vid);
           if (ex) { if (!ex.pub && pub) ex.pub = pub; }
@@ -3119,7 +3154,7 @@ async function sync(quiet) {
     } catch (e) { syslog(`ERR >> ${ch.handle}`, 'wr'); }
   }));
   store.set('aether_videos_v1', state.videos); store.set('aether_lastsync_v1', Date.now());
-  ico.classList.remove('spin'); renderAll();
+  ico.classList.remove('spin'); renderAll(); queueOrient(state.videos);
   const msg = added ? `${added} 個の新規ノードを接続` : '全ノード同期済み';
   if (added && hadVideos) patternBlue(added); else if (!quiet || added) toast(msg);
   syslog(`SYNC DONE >> ${msg}`, 'ok');
@@ -3165,7 +3200,7 @@ function renderChBar() {
 }
 function entryFromApi(it, chId) {
   const sec = isoToSec(it.contentDetails && it.contentDetails.duration), title = (it.snippet && it.snippet.title) || '', pub = (it.snippet && it.snippet.publishedAt) || '';
-  return { id: it.id, channelId: chId, cat: it.snippet && it.snippet.categoryId, title, date: pub ? new Date(Date.parse(pub) + 9 * 3600e3).toISOString().slice(0, 10) : '', pub, duration: secToDur(sec), views: +((it.statistics && it.statistics.viewCount) || 0), isShort: sec <= 62 || /#shorts/i.test(title) };
+  return { id: it.id, channelId: chId, cat: it.snippet && it.snippet.categoryId, title, date: pub ? new Date(Date.parse(pub) + 9 * 3600e3).toISOString().slice(0, 10) : '', pub, duration: secToDur(sec), views: +((it.statistics && it.statistics.viewCount) || 0), isShort: sec > 182 ? false : oriShort(it.id, sec <= 62 || /#shorts/i.test(title)) };
 }
 const idx = () => { const m = new Map(); state.videos.forEach((v, i) => m.set(v.id, i)); return m; };
 async function fetchArchive(chId) {
@@ -3202,7 +3237,7 @@ async function fetchArchive(chId) {
     if (state.tab !== 'archive') state.tab = 'archive';
     if (state.mode !== 'grid') { state.mode = 'grid'; $('vGrid').classList.add('on'); $('vNerve').classList.remove('on'); }
   } catch (e) { if (e.message !== 'キャンセル') toast('取得に失敗しました：' + e.message); }
-  finally { archBusy = null; renderAll(); }
+  finally { archBusy = null; renderAll(); queueOrient(state.videos); }
 }
 function patternBlue(n) {
   SFX.alarm();
@@ -3613,7 +3648,7 @@ function initEvents() {
 // =============================================================================
 function boot() {
   const lines = [
-    '<span class="c">MY NERVE TUBE NET</span> // GHOST ARCHIVE TUNER  v8.4',
+    '<span class="c">MY NERVE TUBE NET</span> // GHOST ARCHIVE TUNER  v8.5',
     '> MAGI SYSTEM: MELCHIOR·1 / BALTHASAR·2 / CASPER·3 ... ONLINE',
     '> initializing cyberbrain interface ........ OK',
     `> mounting ${state.channels.length} hubs / ${state.videos.length} memory nodes ... OK`,
@@ -3629,7 +3664,9 @@ function boot() {
 window.addEventListener('DOMContentLoaded', () => {
   applyTheme(state.prefs.theme || 'nerve', true);
   document.body.classList.toggle('q-closed', !searchOpen()); applyPanels();
+  state.videos.forEach(v => { if (oriKnown(v.id)) v.isShort = orient[v.id] === 1; });
   syncGenres(); buildDust(); initEvents(); applyPrefs(); applyQuality(); renderCfg(); renderAll(); updateQBtn();
+  setTimeout(() => queueOrient(state.videos), 2500);
   syslog('NERVE NET online', 'ok');
   if (IS_FILE) { syslog('file:// — 埋め込み再生にはWeb配信が必要', 'wr'); $('linkChip').classList.add('warn'); }
   boot();
